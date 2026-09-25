@@ -458,17 +458,39 @@ const solidifiedObstacleMap = new Map(); // "gx_gz" -> { x, y, z, idx }
 let pointCloudDirty = false;
 let pointCloudHead = 0; // Circular buffer write head
 
+// Discrete Altitude Colormap for 3D Solidified Voxels (Ultra-fast, zero GC overhead)
+const SOLID_ALT_COLORS = [
+  new THREE.Color(0x00f5d4), // 0.0m - 1.5m : Cyber Cyan (Ground obstacles, curbs)
+  new THREE.Color(0x00b4d8), // 1.5m - 3.0m : Electric Blue (Vehicles, low fences)
+  new THREE.Color(0x00e676), // 3.0m - 4.5m : Neon Emerald (Lower walls, hedges)
+  new THREE.Color(0xa7f432), // 4.5m - 6.0m : Bright Lime (Balconies, mid-walls)
+  new THREE.Color(0xffd166), // 6.0m - 8.0m : Amber Gold (Roofs, trees)
+  new THREE.Color(0xff8500), // 8.0m - 10.0m: Vivid Flame Orange (Rooftops)
+  new THREE.Color(0xff0054)  // 10.0m+      : Bright Crimson / Red (High obstacles, towers)
+];
+
+function getSolidVoxelColor(alt) {
+  if (alt < 1.5) return SOLID_ALT_COLORS[0];
+  if (alt < 3.0) return SOLID_ALT_COLORS[1];
+  if (alt < 4.5) return SOLID_ALT_COLORS[2];
+  if (alt < 6.0) return SOLID_ALT_COLORS[3];
+  if (alt < 8.0) return SOLID_ALT_COLORS[4];
+  if (alt < 10.0) return SOLID_ALT_COLORS[5];
+  return SOLID_ALT_COLORS[6];
+}
+
 function initSolidifiedMesh() {
   if (solidInstancedMesh) return;
   const boxGeo = new THREE.BoxGeometry(1, 1, 1);
   const boxMat = new THREE.MeshBasicMaterial({
-    color: 0x00f5d4,
+    color: 0xffffff,
     transparent: true,
-    opacity: 0.75,
+    opacity: 0.82,
     depthWrite: true
   });
   solidInstancedMesh = new THREE.InstancedMesh(boxGeo, boxMat, MAX_SOLID_VOXELS);
   solidInstancedMesh.count = 0;
+  solidInstancedMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_SOLID_VOXELS * 3), 3);
   solidInstancedMesh.name = "solid_instanced_mesh";
   if (fusedObstaclesGroup) fusedObstaclesGroup.add(solidInstancedMesh);
 }
@@ -597,10 +619,13 @@ function solidifyOldPointClusters() {
         const oz = gz * cellSize;
         const oy = Math.max(0.4, pt.y);
 
-        // Add 1 crisp solid voxel at exact obstacle coordinates (NO giant bounding box)
+        // Add 1 crisp solid voxel at exact obstacle coordinates with height gradient
         dummyPos.set(ox, oy, oz);
         dummyMatrix.compose(dummyPos, dummyQuat, dummyScale);
         solidInstancedMesh.setMatrixAt(solidInstancedCount, dummyMatrix);
+
+        const vColor = getSolidVoxelColor(oy);
+        solidInstancedMesh.setColorAt(solidInstancedCount, vColor);
 
         solidifiedObstacleMap.set(cellKey, { x: ox, y: oy, z: oz, idx: solidInstancedCount });
         solidInstancedCount++;
@@ -615,6 +640,9 @@ function solidifyOldPointClusters() {
   if (newSolidCount > 0) {
     solidInstancedMesh.count = solidInstancedCount;
     solidInstancedMesh.instanceMatrix.needsUpdate = true;
+    if (solidInstancedMesh.instanceColor) {
+      solidInstancedMesh.instanceColor.needsUpdate = true;
+    }
   }
 
   if (retainedPoints.length < state.pointCloudPoints.length) {
