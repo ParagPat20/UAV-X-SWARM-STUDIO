@@ -1,5 +1,8 @@
 # UAV-X Swarm Studio & Autopilot Dependencies
 pymavlink>=2.4.40
+MAVProxy>=1.8.60
+pexpect>=4.8.0
+future>=0.18.0
 msgpack-rpc-python>=0.4.1
 airsim>=1.8.1
 websockets>=12.0
