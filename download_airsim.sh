@@ -1,15 +1,17 @@
 #!/bin/bash
 # ==============================================================================
 # UAV-X Swarm Studio — Automated Microsoft AirSim Binary Downloader & Installer
-# Downloads and extracts: Blocks | AirSimNH | LandscapeMountains
+# Downloads and extracts directly inside the project's 'environments/' directory
 # ==============================================================================
 set -e
 
-DOWNLOAD_DIR="$HOME/Downloads"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOWNLOAD_DIR="$SCRIPT_DIR/environments"
 mkdir -p "$DOWNLOAD_DIR"
 
 echo "================================================================================"
 echo "🛸 UAV-X Swarm Studio — Microsoft AirSim Environments Setup"
+echo "  Target Location: $DOWNLOAD_DIR"
 echo "================================================================================"
 echo "Choose which AirSim binary environment(s) to download & configure:"
 echo "  1) Blocks (City & Obstacle Grid — 560 MB) [RECOMMENDED DEFAULT]"
@@ -28,14 +30,18 @@ fi
 
 download_blocks() {
     echo ""
-    echo "▶ [1/3] Downloading Microsoft AirSim: Blocks..."
+    echo "▶ [1/3] Setting up Microsoft AirSim: Blocks..."
     TARGET_DIR="$DOWNLOAD_DIR/Blocks"
     mkdir -p "$TARGET_DIR"
     cd "$TARGET_DIR"
     
     if [ -f "LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh" ] || [ -f "LinuxNoEditor/Blocks.sh" ]; then
-        echo "✔ Blocks already exists in $TARGET_DIR. Skipping download."
+        echo "✔ Blocks already exists in $TARGET_DIR. Ready."
+    elif [ -d "$HOME/Downloads/Blocks/LinuxBlocks1.8.1" ]; then
+        echo "✔ Found existing Blocks in ~/Downloads. Linking to local environments/ folder..."
+        cp -rs "$HOME/Downloads/Blocks/LinuxBlocks1.8.1" "$TARGET_DIR/" 2>/dev/null || cp -r "$HOME/Downloads/Blocks/LinuxBlocks1.8.1" "$TARGET_DIR/"
     else
+        echo "Downloading official Microsoft AirSim Blocks.zip..."
         wget -c --show-progress "https://github.com/microsoft/AirSim/releases/download/v1.8.1-linux/Blocks.zip" -O Blocks.zip
         echo "Extracting Blocks.zip..."
         unzip -q -o Blocks.zip -d LinuxBlocks1.8.1
@@ -44,19 +50,23 @@ download_blocks() {
     
     chmod +x "$TARGET_DIR"/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh 2>/dev/null || true
     chmod +x "$TARGET_DIR"/LinuxNoEditor/Blocks.sh 2>/dev/null || true
-    echo "✔ Blocks environment installed successfully!"
+    echo "✔ Blocks environment configured successfully at $TARGET_DIR!"
 }
 
 download_nh() {
     echo ""
-    echo "▶ [2/3] Downloading Microsoft AirSim: AirSimNH (Neighborhood)..."
+    echo "▶ [2/3] Setting up Microsoft AirSim: AirSimNH (Neighborhood)..."
     TARGET_DIR="$DOWNLOAD_DIR/AirSimNH"
     mkdir -p "$TARGET_DIR"
     cd "$TARGET_DIR"
     
     if [ -f "LinuxNoEditor/AirSimNH.sh" ] || [ -f "AirSimNH/LinuxNoEditor/AirSimNH.sh" ]; then
-        echo "✔ AirSimNH already exists in $TARGET_DIR. Skipping download."
+        echo "✔ AirSimNH already exists in $TARGET_DIR. Ready."
+    elif [ -d "$HOME/Downloads/AirSimNH" ] && [ -f "$HOME/Downloads/AirSimNH/LinuxNoEditor/AirSimNH.sh" ]; then
+        echo "✔ Found existing AirSimNH in ~/Downloads. Linking to local environments/ folder..."
+        cp -rs "$HOME/Downloads/AirSimNH/"* "$TARGET_DIR/" 2>/dev/null || cp -r "$HOME/Downloads/AirSimNH/"* "$TARGET_DIR/"
     else
+        echo "Downloading official Microsoft AirSim AirSimNH.zip..."
         wget -c --show-progress "https://github.com/microsoft/AirSim/releases/download/v1.8.1-linux/AirSimNH.zip" -O AirSimNH.zip
         echo "Extracting AirSimNH.zip..."
         unzip -q -o AirSimNH.zip
@@ -65,19 +75,23 @@ download_nh() {
     
     chmod +x "$TARGET_DIR"/LinuxNoEditor/AirSimNH.sh 2>/dev/null || true
     chmod +x "$TARGET_DIR"/AirSimNH/LinuxNoEditor/AirSimNH.sh 2>/dev/null || true
-    echo "✔ AirSimNH environment installed successfully!"
+    echo "✔ AirSimNH environment configured successfully at $TARGET_DIR!"
 }
 
 download_mountains() {
     echo ""
-    echo "▶ [3/3] Downloading Microsoft AirSim: LandscapeMountains..."
+    echo "▶ [3/3] Setting up Microsoft AirSim: LandscapeMountains..."
     TARGET_DIR="$DOWNLOAD_DIR/LandscapeMountains"
     mkdir -p "$TARGET_DIR"
     cd "$TARGET_DIR"
     
     if [ -f "LinuxNoEditor/LandscapeMountains.sh" ] || [ -f "LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh" ]; then
-        echo "✔ LandscapeMountains already exists in $TARGET_DIR. Skipping download."
+        echo "✔ LandscapeMountains already exists in $TARGET_DIR. Ready."
+    elif [ -d "$HOME/Downloads/LandscapeMountains" ] && [ -f "$HOME/Downloads/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh" ]; then
+        echo "✔ Found existing LandscapeMountains in ~/Downloads. Linking to local environments/ folder..."
+        cp -rs "$HOME/Downloads/LandscapeMountains/"* "$TARGET_DIR/" 2>/dev/null || cp -r "$HOME/Downloads/LandscapeMountains/"* "$TARGET_DIR/"
     else
+        echo "Downloading official Microsoft AirSim LandscapeMountains.zip..."
         wget -c --show-progress "https://github.com/microsoft/AirSim/releases/download/v1.8.1-linux/LandscapeMountains.zip" -O LandscapeMountains.zip
         echo "Extracting LandscapeMountains.zip..."
         unzip -q -o LandscapeMountains.zip
@@ -86,7 +100,7 @@ download_mountains() {
     
     chmod +x "$TARGET_DIR"/LinuxNoEditor/LandscapeMountains.sh 2>/dev/null || true
     chmod +x "$TARGET_DIR"/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh 2>/dev/null || true
-    echo "✔ LandscapeMountains environment installed successfully!"
+    echo "✔ LandscapeMountains environment configured successfully at $TARGET_DIR!"
 }
 
 case "$CHOICE" in

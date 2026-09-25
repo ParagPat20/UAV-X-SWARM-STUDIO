@@ -54,6 +54,9 @@ case "$ENV_CHOICE" in
         ENV_NAME="AirSimNH (Urban Neighborhood)"
         POSSIBLE_PATHS=(
             "$AIRSIM_NH_BIN"
+            "$SCRIPT_DIR/environments/AirSimNH/LinuxNoEditor/AirSimNH.sh"
+            "$SCRIPT_DIR/environments/AirSimNH/AirSimNH/LinuxNoEditor/AirSimNH.sh"
+            "$SCRIPT_DIR/environments/AirSimNH/LinuxAirSimNH1.8.1/LinuxNoEditor/AirSimNH.sh"
             "$HOME/Downloads/AirSimNH/LinuxNoEditor/AirSimNH.sh"
             "$HOME/Downloads/AirSimNH/AirSimNH/LinuxNoEditor/AirSimNH.sh"
             "$HOME/Downloads/AirSimNH/LinuxAirSimNH1.8.1/LinuxNoEditor/AirSimNH.sh"
@@ -65,6 +68,9 @@ case "$ENV_CHOICE" in
         ENV_NAME="LandscapeMountains (Mountain BVLOS)"
         POSSIBLE_PATHS=(
             "$AIRSIM_MOUNTAINS_BIN"
+            "$SCRIPT_DIR/environments/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
+            "$SCRIPT_DIR/environments/LandscapeMountains/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
+            "$SCRIPT_DIR/environments/LandscapeMountains/LinuxLandscapeMountains1.8.1/LinuxNoEditor/LandscapeMountains.sh"
             "$HOME/Downloads/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
             "$HOME/Downloads/LandscapeMountains/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
             "$HOME/Downloads/LandscapeMountains/LinuxLandscapeMountains1.8.1/LinuxNoEditor/LandscapeMountains.sh"
@@ -76,6 +82,8 @@ case "$ENV_CHOICE" in
         ENV_NAME="Blocks (Obstacle City Grid)"
         POSSIBLE_PATHS=(
             "$AIRSIM_BIN"
+            "$SCRIPT_DIR/environments/Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh"
+            "$SCRIPT_DIR/environments/Blocks/LinuxNoEditor/Blocks.sh"
             "$HOME/Downloads/Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh"
             "$HOME/Downloads/Blocks/LinuxNoEditor/Blocks.sh"
             "$HOME/Blocks/LinuxNoEditor/Blocks.sh"

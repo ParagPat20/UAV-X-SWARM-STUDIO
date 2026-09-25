@@ -56,3 +56,10 @@ Thumbs.db
 # Temporary data dumps
 /tmp/
 *.tmp
+
+# Microsoft AirSim Binary Environments & Archives
+environments/
+Blocks/
+AirSimNH/
+LandscapeMountains/
+*.zip

@@ -148,33 +148,43 @@ pip install -r requirements.txt
 ---
 
 ### Step 4: Download Microsoft AirSim Binary Environments
-Microsoft AirSim provides pre-built Unreal Engine environments (~500MB to 1.2GB each). UAV-X Swarm Studio supports **Blocks**, **AirSimNH (Urban Neighborhood)**, and **LandscapeMountains (Rugged BVLOS Terrain)**:
+AirSim environments are downloaded directly inside the project's `./environments/` folder (which is automatically ignored by git):
+
+```bash
+# Automated Downloader (Choose 1 for Blocks, 2 for AirSimNH, 3 for Mountains, or 4 for All):
+./download_airsim.sh
+```
+
+Or download manually into `./environments/`:
 
 #### Option A: Blocks (City & Obstacle Grid — Recommended Default)
 ```bash
-mkdir -p ~/Downloads/Blocks && cd ~/Downloads/Blocks
+mkdir -p environments/Blocks && cd environments/Blocks
 wget https://github.com/microsoft/AirSim/releases/download/v1.8.1-linux/Blocks.zip
 unzip Blocks.zip -d LinuxBlocks1.8.1
-chmod +x ~/Downloads/Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh
+chmod +x LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh
+cd ../..
 ```
 
 #### Option B: AirSimNH (Urban Residential Neighborhood)
 ```bash
-mkdir -p ~/Downloads/AirSimNH && cd ~/Downloads/AirSimNH
+mkdir -p environments/AirSimNH && cd environments/AirSimNH
 wget https://github.com/microsoft/AirSim/releases/download/v1.8.1-linux/AirSimNH.zip
 unzip AirSimNH.zip
-chmod +x ~/Downloads/AirSimNH/LinuxNoEditor/AirSimNH.sh
+chmod +x LinuxNoEditor/AirSimNH.sh
+cd ../..
 ```
 
 #### Option C: LandscapeMountains (Rugged Mountains & BVLOS Terrain)
 ```bash
-mkdir -p ~/Downloads/LandscapeMountains && cd ~/Downloads/LandscapeMountains
+mkdir -p environments/LandscapeMountains && cd environments/LandscapeMountains
 wget https://github.com/microsoft/AirSim/releases/download/v1.8.1-linux/LandscapeMountains.zip
 unzip LandscapeMountains.zip
-chmod +x ~/Downloads/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh
+chmod +x LinuxNoEditor/LandscapeMountains.sh
+cd ../..
 ```
 
-*(Note: `start_sitl.sh` automatically scans standard download directories for any of these 3 environments).*
+*(Note: `start_sitl.sh` automatically checks `./environments/` first, then scans `~/Downloads/`).*
 
 ---
 
