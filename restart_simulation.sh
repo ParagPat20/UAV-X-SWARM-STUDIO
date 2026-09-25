@@ -13,7 +13,7 @@ pkill -9 -f "arducopter" 2>/dev/null || true
 pkill -9 -f "mavproxy" 2>/dev/null || true
 pkill -9 -f "sim_vehicle" 2>/dev/null || true
 pkill -9 -f "server.py" 2>/dev/null || true
-pkill -9 -f "Blocks|AirSimNH|LandscapeMountains|Africa_001" 2>/dev/null || true
+pkill -9 -f "LinuxNoEditor/.*\.sh|Binaries/Linux/.*-Linux|Blocks\.sh|AirSimNH\.sh|LandscapeMountains\.sh" 2>/dev/null || true
 fuser -k 8080/tcp 8765/tcp 2>/dev/null || true
 
 sleep 1.5

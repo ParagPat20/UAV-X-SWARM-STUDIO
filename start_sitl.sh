@@ -26,7 +26,7 @@ cleanup() {
     pkill -9 -f "localhost:8080" 2>/dev/null || true
     pkill -9 -f "UAV-X Swarm Studio" 2>/dev/null || true
     [ -n "$AIRSIM_PID" ] && kill -9 "$AIRSIM_PID" 2>/dev/null || true
-    pkill -9 -f "Blocks|AirSimNH|LandscapeMountains|Africa_001" 2>/dev/null || true
+    pkill -9 -f "LinuxNoEditor/.*\.sh|Binaries/Linux/.*-Linux|Blocks\.sh|AirSimNH\.sh|LandscapeMountains\.sh" 2>/dev/null || true
     fuser -k 8080/tcp 8765/tcp 2>/dev/null || true
     exit 0
 }
@@ -193,8 +193,11 @@ EOF
 
 # --- 3. Clean previous instances and launch AirSim ---
 echo "Cleaning up any old simulation and GCS processes..."
-pkill -9 -f "Blocks|AirSimNH|LandscapeMountains|Africa_001|arducopter|mavproxy" 2>/dev/null || true
+pkill -9 -f "arducopter" 2>/dev/null || true
+pkill -9 -f "mavproxy" 2>/dev/null || true
+pkill -9 -f "sim_vehicle" 2>/dev/null || true
 pkill -9 -f "server.py" 2>/dev/null || true
+pkill -9 -f "LinuxNoEditor/.*\.sh|Binaries/Linux/.*-Linux|Blocks\.sh|AirSimNH\.sh|LandscapeMountains\.sh" 2>/dev/null || true
 rm -f "$SCRIPT_DIR"/eeprom*.bin 2>/dev/null || true
 fuser -k 8080/tcp 8765/tcp 2>/dev/null || true
 sleep 1
