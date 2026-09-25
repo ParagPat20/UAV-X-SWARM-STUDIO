@@ -151,6 +151,7 @@ window.addEventListener("DOMContentLoaded", () => {
   initSurveyModal();
   initPointCloudModal();
   initWaveChart();
+  initFPVVideoDeck();
   
   // Start dynamic SLAM solidification timer
   setSolidificationInterval(solidificationIntervalSec);
@@ -3121,3 +3122,266 @@ function exportPointCloud(format = "xyz") {
   logEvent(`Exported ${points.length.toLocaleString()} SLAM points to ${filename}`);
 }
 
+// ==========================================================================
+// Collapsible Live FPV Multi-Camera Video Deck Controller
+// ==========================================================================
+let fpvPollingInterval = null;
+let fpvActiveDrone = 1;
+let fpvActiveCam = 0;
+let fpvIsMatrixView = false;
+let fpvIsOpen = false;
+let fpvFpsCounter = 0;
+let fpvLastFpsTime = Date.now();
+
+function initFPVVideoDeck() {
+  const deck = document.getElementById("fpv-video-deck");
+  const btnOpenHeader = document.getElementById("btn-open-fpv-deck");
+  const toolFpv = document.getElementById("tool-fpv");
+  const btnClose = document.getElementById("fpv-btn-close");
+  const btnToggle = document.getElementById("fpv-btn-toggle");
+  const deckBody = document.getElementById("fpv-deck-body");
+  const camSelect = document.getElementById("fpv-cam-select");
+  const singleView = document.getElementById("fpv-single-view");
+  const matrixView = document.getElementById("fpv-matrix-view");
+  const matrixGrid = document.getElementById("fpv-matrix-grid");
+  const liveImg = document.getElementById("fpv-live-img");
+  const placeholder = document.getElementById("fpv-placeholder");
+  const titleElem = document.getElementById("fpv-active-drone-title");
+
+  if (!deck) return;
+
+  function toggleDeck(open) {
+    fpvIsOpen = (typeof open === "boolean") ? open : deck.classList.contains("hidden");
+    if (fpvIsOpen) {
+      deck.classList.remove("hidden");
+      btnOpenHeader?.classList.add("active");
+      toolFpv?.classList.add("active");
+      startFpvStream();
+      logEvent("Live FPV Video Deck Opened");
+    } else {
+      deck.classList.add("hidden");
+      btnOpenHeader?.classList.remove("active");
+      toolFpv?.classList.remove("active");
+      stopFpvStream();
+    }
+  }
+
+  btnOpenHeader?.addEventListener("click", () => toggleDeck());
+  toolFpv?.addEventListener("click", () => toggleDeck());
+  btnClose?.addEventListener("click", () => toggleDeck(false));
+
+  btnToggle?.addEventListener("click", () => {
+    if (deckBody) {
+      deckBody.classList.toggle("collapsed");
+      btnToggle.textContent = deckBody.classList.contains("collapsed") ? "□" : "━";
+    }
+  });
+
+  // Camera Sensor Selection
+  camSelect?.addEventListener("change", (e) => {
+    fpvActiveCam = parseInt(e.target.value || "0", 10);
+    logEvent(`FPV Camera Sensor changed to Index ${fpvActiveCam}`);
+  });
+
+  // Drone Tab Selection
+  document.querySelectorAll(".fpv-channel-tabs .fpv-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".fpv-channel-tabs .fpv-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      const target = tab.dataset.drone;
+
+      if (target === "matrix") {
+        fpvIsMatrixView = true;
+        if (singleView) singleView.classList.add("hidden");
+        if (matrixView) matrixView.classList.remove("hidden");
+        if (titleElem) titleElem.textContent = "QUAD-VIEW SURVEILLANCE GRID";
+        buildMatrixGrid();
+      } else {
+        fpvIsMatrixView = false;
+        fpvActiveDrone = parseInt(target, 10);
+        if (matrixView) matrixView.classList.add("hidden");
+        if (singleView) singleView.classList.remove("hidden");
+        if (titleElem) titleElem.textContent = `UAV ${fpvActiveDrone} OPTICAL FEED`;
+      }
+    });
+  });
+
+  // Dragging support for floating window
+  makeElementDraggable(deck, document.getElementById("fpv-deck-header"));
+
+  function buildMatrixGrid() {
+    if (!matrixGrid) return;
+    matrixGrid.innerHTML = "";
+    for (let id = 1; id <= 4; id++) {
+      const cell = document.createElement("div");
+      cell.className = "fpv-matrix-cell";
+      cell.innerHTML = `
+        <img id="fpv-matrix-img-${id}" class="fpv-stream-img" src="" alt="UAV ${id} Feed" />
+        <div class="fpv-matrix-cell-label" style="border-left: 3px solid ${DRONE_COLORS[id - 1] || '#00f5d4'}">
+          UAV ${id} | <span id="fpv-matrix-alt-${id}">0.0m</span>
+        </div>
+      `;
+      cell.addEventListener("click", () => {
+        // Click cell to focus single drone
+        document.querySelector(`.fpv-channel-tabs .fpv-tab[data-drone="${id}"]`)?.click();
+      });
+      matrixGrid.appendChild(cell);
+    }
+  }
+
+  function startFpvStream() {
+    if (fpvPollingInterval) clearInterval(fpvPollingInterval);
+    fpvPollingInterval = setInterval(fetchNextFpvFrame, 120); // ~8-10 FPS smooth stream
+  }
+
+  function stopFpvStream() {
+    if (fpvPollingInterval) {
+      clearInterval(fpvPollingInterval);
+      fpvPollingInterval = null;
+    }
+  }
+
+  let isFetching = false;
+  async function fetchNextFpvFrame() {
+    if (!fpvIsOpen || isFetching) return;
+    isFetching = true;
+
+    try {
+      if (!fpvIsMatrixView) {
+        // Single view fetch
+        const targetId = fpvActiveDrone;
+        const res = await fetch(`/api/camera?drone=${targetId}&camera=${fpvActiveCam}&t=${Date.now()}`);
+        if (res.ok && res.headers.get("content-type")?.includes("image")) {
+          const blob = await res.blob();
+          if (blob.size > 500) {
+            const objectUrl = URL.createObjectURL(blob);
+            if (liveImg) {
+              const oldSrc = liveImg.src;
+              liveImg.src = objectUrl;
+              liveImg.style.display = "block";
+              if (placeholder) placeholder.style.display = "none";
+              if (oldSrc && oldSrc.startsWith("blob:")) URL.revokeObjectURL(oldSrc);
+            }
+            updateFpvHud(targetId);
+          }
+        }
+      } else {
+        // Quad matrix view fetch (interleaved)
+        for (let id = 1; id <= 4; id++) {
+          const imgElem = document.getElementById(`fpv-matrix-img-${id}`);
+          const altElem = document.getElementById(`fpv-matrix-alt-${id}`);
+          const d = state.drones[id];
+          if (altElem && d && d.telemetry) {
+            altElem.textContent = `${(d.telemetry.alt || 0).toFixed(1)}m`;
+          }
+
+          try {
+            const res = await fetch(`/api/camera?drone=${id}&camera=0&t=${Date.now()}`);
+            if (res.ok && res.headers.get("content-type")?.includes("image")) {
+              const blob = await res.blob();
+              if (blob.size > 500 && imgElem) {
+                const objectUrl = URL.createObjectURL(blob);
+                const oldSrc = imgElem.src;
+                imgElem.src = objectUrl;
+                if (oldSrc && oldSrc.startsWith("blob:")) URL.revokeObjectURL(oldSrc);
+              }
+            }
+          } catch (e) { }
+        }
+      }
+
+      // Compute FPS counter
+      fpvFpsCounter++;
+      const now = Date.now();
+      if (now - fpvLastFpsTime >= 1000) {
+        const fpsElem = document.getElementById("fpv-hud-fps");
+        if (fpsElem) fpsElem.textContent = `${fpvFpsCounter} FPS | 640x480 RGB | AirSim RPC`;
+        fpvFpsCounter = 0;
+        fpvLastFpsTime = now;
+      }
+    } catch (err) {
+      // Network or simulation standby
+    } finally {
+      isFetching = false;
+    }
+  }
+
+  function updateFpvHud(id) {
+    const d = state.drones[id];
+    if (!d || !d.telemetry) return;
+    const telem = d.telemetry;
+
+    const altElem = document.getElementById("fpv-hud-alt");
+    const spdElem = document.getElementById("fpv-hud-spd");
+    const hdgElem = document.getElementById("fpv-hud-hdg");
+    const battElem = document.getElementById("fpv-hud-batt");
+    const modeElem = document.getElementById("fpv-hud-mode");
+    const rssiElem = document.getElementById("fpv-hud-rssi");
+    const coordsElem = document.getElementById("fpv-hud-coords");
+    const ladder = document.getElementById("fpv-horizon-ladder");
+
+    const alt = telem.alt != null ? telem.alt.toFixed(1) : "0.0";
+    const spd = telem.speed != null ? telem.speed.toFixed(1) : "0.0";
+    const hdg = Math.round(telem.heading || 0);
+    const batt = Math.round(telem.battery != null ? telem.battery : 100);
+    const mode = telem.flight_mode || "GUIDED";
+
+    if (altElem) altElem.textContent = `${alt}m`;
+    if (spdElem) spdElem.textContent = `${spd}m/s`;
+    if (hdgElem) hdgElem.textContent = `${hdg}° ${getCompassSector(hdg)}`;
+    if (battElem) battElem.textContent = `${batt}%`;
+    if (modeElem) modeElem.textContent = mode;
+    if (rssiElem) rssiElem.textContent = `${telem.rssi || 98}%`;
+
+    if (coordsElem && telem.lat && telem.lon) {
+      coordsElem.textContent = `GPS: ${telem.lat.toFixed(5)}, ${telem.lon.toFixed(5)} | SATS: ${telem.sats || 14}`;
+    }
+
+    // Artificial horizon tilt & pitch
+    if (ladder && telem.roll != null && telem.pitch != null) {
+      const rollDeg = telem.roll;
+      const pitchPx = telem.pitch * 2.0;
+      ladder.style.transform = `translate(-50%, calc(-50% + ${pitchPx}px)) rotate(${-rollDeg}deg)`;
+    }
+  }
+
+  function getCompassSector(deg) {
+    const sectors = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    return sectors[Math.round(((deg % 360) / 45)) % 8];
+  }
+
+  function makeElementDraggable(elm, handle) {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    if (handle) {
+      handle.onmousedown = dragMouseDown;
+    } else {
+      elm.onmousedown = dragMouseDown;
+    }
+
+    function dragMouseDown(e) {
+      if (e.target.tagName === "BUTTON" || e.target.tagName === "SELECT" || e.target.classList.contains("fpv-tab")) return;
+      e.preventDefault();
+      pos3 = e.clientX;
+      pos4 = e.clientY;
+      document.onmouseup = closeDragElement;
+      document.onmousemove = elementDrag;
+    }
+
+    function elementDrag(e) {
+      e.preventDefault();
+      pos1 = pos3 - e.clientX;
+      pos2 = pos4 - e.clientY;
+      pos3 = e.clientX;
+      pos4 = e.clientY;
+      elm.style.top = (elm.offsetTop - pos2) + "px";
+      elm.style.left = (elm.offsetLeft - pos1) + "px";
+      elm.style.bottom = "auto";
+      elm.style.right = "auto";
+    }
+
+    function closeDragElement() {
+      document.onmouseup = null;
+      document.onmousemove = null;
+    }
+  }
+}

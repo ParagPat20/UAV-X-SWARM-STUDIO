@@ -56,6 +56,10 @@
         <span class="brand-badge">BVLOS AUTONOMOUS GCS</span>
       </div>
       <div class="quick-nav-actions">
+        <button class="top-action-btn" id="btn-open-fpv-deck" title="Live Multi-UAV FPV Camera Feeds">
+          <span class="btn-icon">🎥</span>
+          <span>Live FPV</span>
+        </button>
         <button class="top-action-btn" id="btn-open-slam-modal" title="Point Cloud Registry & SLAM Manager">
           <span class="btn-icon">☁️</span>
           <span>Point Cloud (<strong id="top-pointcloud-count">0 pts</strong>)</span>
@@ -117,6 +121,11 @@
     <button class="tool-btn active" id="tool-pointcloud" title="Toggle 3D LiDAR Point Cloud SLAM Map">
       <span class="tool-icon-text">🌐</span>
       <span>Points</span>
+    </button>
+
+    <button class="tool-btn" id="tool-fpv" title="Toggle Live FPV Video Deck">
+      <span class="tool-icon-text">🎥</span>
+      <span>Live FPV</span>
     </button>
 
     <button class="tool-btn" id="tool-slam-manager" title="Point Cloud Registry SLAM Manager (Trim & Save)">
@@ -591,6 +600,105 @@
         <button class="modal-btn-execute" id="modal-btn-execute">
           <span class="btn-icon">🚀</span> <span>EXECUTE FORMATION</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- Collapsible Live FPV Multi-Camera Deck (Floating Glassmorphic Window)   -->
+  <!-- ======================================================================= -->
+  <div id="fpv-video-deck" class="fpv-deck hidden">
+    <!-- Header Bar -->
+    <div class="fpv-header" id="fpv-deck-header">
+      <div class="fpv-header-title-group">
+        <div class="fpv-live-pulse-indicator">
+          <span class="pulse-dot"></span>
+          <span class="live-label">LIVE</span>
+        </div>
+        <span class="fpv-deck-title" id="fpv-active-drone-title">UAV 1 OPTICAL FEED</span>
+      </div>
+
+      <!-- Drone Channel Tabs -->
+      <div class="fpv-channel-tabs" id="fpv-drone-tabs">
+        <button class="fpv-tab active" data-drone="1"><span class="tab-dot" style="background:#00f5d4"></span> UAV 1</button>
+        <button class="fpv-tab" data-drone="2"><span class="tab-dot" style="background:#b388ff"></span> UAV 2</button>
+        <button class="fpv-tab" data-drone="3"><span class="tab-dot" style="background:#ff4081"></span> UAV 3</button>
+        <button class="fpv-tab" data-drone="4"><span class="tab-dot" style="background:#ffd740"></span> UAV 4</button>
+        <button class="fpv-tab" data-drone="5"><span class="tab-dot" style="background:#69f0ae"></span> UAV 5</button>
+        <button class="fpv-tab" data-drone="matrix">🔲 QUAD</button>
+      </div>
+
+      <!-- Controls: Camera Type, Minimize, Close -->
+      <div class="fpv-header-controls">
+        <select id="fpv-cam-select" class="fpv-select" title="Switch Camera Sensor">
+          <option value="0">📷 Front FPV (0°)</option>
+          <option value="3">🎯 Downward Gimbal (-90°)</option>
+          <option value="1">➡️ Front Right (30°)</option>
+          <option value="2">⬅️ Front Left (-30°)</option>
+        </select>
+        <button class="fpv-ctrl-btn" id="fpv-btn-toggle" title="Collapse / Expand FPV Deck">━</button>
+        <button class="fpv-ctrl-btn fpv-close-btn" id="fpv-btn-close" title="Close FPV Deck">✕</button>
+      </div>
+    </div>
+
+    <!-- Body Viewport Container -->
+    <div class="fpv-body" id="fpv-deck-body">
+      <!-- Single Drone Main Feed -->
+      <div class="fpv-viewport-single" id="fpv-single-view">
+        <img id="fpv-live-img" class="fpv-stream-img" src="" alt="Live FPV Video Feed" />
+        
+        <!-- Live HUD Overlay -->
+        <div class="fpv-hud-overlay">
+          <!-- Top Left Telemetry -->
+          <div class="fpv-hud-telemetry-tl">
+            <div class="fpv-hud-row"><span class="hud-label">ALT</span> <span class="hud-val" id="fpv-hud-alt">0.0m</span></div>
+            <div class="fpv-hud-row"><span class="hud-label">SPD</span> <span class="hud-val" id="fpv-hud-spd">0.0m/s</span></div>
+            <div class="fpv-hud-row"><span class="hud-label">HDG</span> <span class="hud-val" id="fpv-hud-hdg">0° N</span></div>
+          </div>
+
+          <!-- Top Right Battery & Status -->
+          <div class="fpv-hud-telemetry-tr">
+            <div class="fpv-hud-row"><span class="hud-label">BATT</span> <span class="hud-val highlight-green" id="fpv-hud-batt">100%</span></div>
+            <div class="fpv-hud-row"><span class="hud-label">MODE</span> <span class="hud-val highlight-blue" id="fpv-hud-mode">GUIDED</span></div>
+            <div class="fpv-hud-row"><span class="hud-label">LINK</span> <span class="hud-val highlight-green" id="fpv-hud-rssi">98%</span></div>
+          </div>
+
+          <!-- Center Crosshair & Artificial Horizon Ladder -->
+          <div class="fpv-crosshair-reticle">
+            <div class="fpv-reticle-circle"></div>
+            <div class="fpv-reticle-line-h left"></div>
+            <div class="fpv-reticle-line-h right"></div>
+            <div class="fpv-reticle-line-v top"></div>
+            <div class="fpv-reticle-line-v bottom"></div>
+            <div class="fpv-horizon-ladder" id="fpv-horizon-ladder">
+              <div class="ladder-bar bar-pos"></div>
+              <div class="ladder-bar bar-center"></div>
+              <div class="ladder-bar bar-neg"></div>
+            </div>
+          </div>
+
+          <!-- Bottom Coordinates & Stream Metrics -->
+          <div class="fpv-hud-telemetry-bl">
+            <span class="hud-mono" id="fpv-hud-coords">GPS: 47.64147, -122.13963 | SATS: 15</span>
+          </div>
+          <div class="fpv-hud-telemetry-br">
+            <span class="hud-mono" id="fpv-hud-fps">12 FPS | 640x480 RGB | AirSim RPC</span>
+          </div>
+        </div>
+
+        <!-- Standby / Offline Placard when AirSim is loading -->
+        <div class="fpv-standby-placeholder" id="fpv-placeholder">
+          <div class="placeholder-icon">📡</div>
+          <div class="placeholder-title">AIRSIM CAMERA LINK READY</div>
+          <div class="placeholder-sub">Select a UAV above to view live real-time FPV stream</div>
+        </div>
+      </div>
+
+      <!-- Multi-Camera Quad Matrix Grid View -->
+      <div class="fpv-viewport-matrix hidden" id="fpv-matrix-view">
+        <div class="fpv-matrix-grid" id="fpv-matrix-grid">
+          <!-- Dynamic quad cells generated in app.js -->
+        </div>
       </div>
     </div>
   </div>

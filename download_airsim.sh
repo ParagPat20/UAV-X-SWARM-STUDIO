@@ -17,13 +17,14 @@ echo "Choose which AirSim binary environment(s) to download & configure:"
 echo "  1) Blocks (City & Obstacle Grid — 560 MB) [RECOMMENDED DEFAULT]"
 echo "  2) AirSimNH (Urban Residential Neighborhood — 1.1 GB)"
 echo "  3) LandscapeMountains (Rugged Mountains & BVLOS Terrain — 580 MB)"
-echo "  4) ALL Environments (Blocks + AirSimNH + LandscapeMountains — ~2.2 GB)"
+echo "  4) ZhangJiajie (Avatar Mountain Pillars & Gorges — 560 MB)"
+echo "  5) ALL Environments (Blocks + AirSimNH + LandscapeMountains + ZhangJiajie)"
 echo "================================================================================"
 
 if [ -n "$1" ]; then
     CHOICE="$1"
 else
-    echo -n "Enter selection [1-4, default 1]: "
+    echo -n "Enter selection [1-5, default 1]: "
     read CHOICE
     CHOICE="${CHOICE:-1}"
 fi
@@ -103,6 +104,31 @@ download_mountains() {
     echo "✔ LandscapeMountains environment configured successfully at $TARGET_DIR!"
 }
 
+download_zhangjiajie() {
+    echo ""
+    echo "▶ [4/4] Setting up Microsoft AirSim: ZhangJiajie..."
+    TARGET_DIR="$DOWNLOAD_DIR/ZhangJiajie"
+    mkdir -p "$TARGET_DIR"
+    cd "$TARGET_DIR"
+    
+    if [ -f "ZhangJiajie/LinuxNoEditor/ZhangJiajie.sh" ] || [ -f "LinuxNoEditor/ZhangJiajie.sh" ]; then
+        echo "✔ ZhangJiajie already exists in $TARGET_DIR. Ready."
+    elif [ -f "$HOME/ZhangJiajie.zip" ]; then
+        echo "✔ Found existing ZhangJiajie.zip in $HOME. Extracting to local environments/ folder..."
+        unzip -q -o "$HOME/ZhangJiajie.zip" -d "$TARGET_DIR"
+    else
+        echo "Downloading official Microsoft AirSim ZhangJiajie.zip..."
+        wget -c --show-progress "https://github.com/microsoft/AirSim/releases/download/v1.8.0-linux/ZhangJiajie.zip" -O ZhangJiajie.zip
+        echo "Extracting ZhangJiajie.zip..."
+        unzip -q -o ZhangJiajie.zip
+        rm -f ZhangJiajie.zip
+    fi
+    
+    chmod +x "$TARGET_DIR"/ZhangJiajie/LinuxNoEditor/ZhangJiajie.sh 2>/dev/null || true
+    chmod +x "$TARGET_DIR"/LinuxNoEditor/ZhangJiajie.sh 2>/dev/null || true
+    echo "✔ ZhangJiajie environment configured successfully at $TARGET_DIR!"
+}
+
 case "$CHOICE" in
     1|[Bb]locks)
         download_blocks
@@ -113,10 +139,14 @@ case "$CHOICE" in
     3|[Mm]ountains|[Ll]andscape*)
         download_mountains
         ;;
-    4|[Aa]ll)
+    4|[Zz]hang*|[Aa]vatar*)
+        download_zhangjiajie
+        ;;
+    5|[Aa]ll)
         download_blocks
         download_nh
         download_mountains
+        download_zhangjiajie
         ;;
     *)
         echo "Invalid selection. Defaulting to Blocks."
@@ -131,4 +161,5 @@ echo "You can now run:"
 echo "  ./start_sitl.sh 5 Blocks"
 echo "  ./start_sitl.sh 5 AirSimNH"
 echo "  ./start_sitl.sh 5 LandscapeMountains"
+echo "  ./start_sitl.sh 5 ZhangJiajie"
 echo "================================================================================"

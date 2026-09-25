@@ -26,7 +26,10 @@ cleanup() {
     pkill -9 -f "localhost:8080" 2>/dev/null || true
     pkill -9 -f "UAV-X Swarm Studio" 2>/dev/null || true
     [ -n "$AIRSIM_PID" ] && kill -9 "$AIRSIM_PID" 2>/dev/null || true
-    pkill -9 -f "LinuxNoEditor/.*\.sh|Binaries/Linux/.*-Linux|Blocks\.sh|AirSimNH\.sh|LandscapeMountains\.sh" 2>/dev/null || true
+    pkill -9 -x "Blocks" 2>/dev/null || true
+    pkill -9 -x "AirSimNH" 2>/dev/null || true
+    pkill -9 -x "LandscapeMountains" 2>/dev/null || true
+    pkill -9 -x "ZhangJiajie" 2>/dev/null || true
     fuser -k 8080/tcp 8765/tcp 2>/dev/null || true
     exit 0
 }
@@ -76,6 +79,18 @@ case "$ENV_CHOICE" in
             "$HOME/Downloads/LandscapeMountains/LinuxLandscapeMountains1.8.1/LinuxNoEditor/LandscapeMountains.sh"
             "$HOME/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
             "/opt/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
+        )
+        ;;
+    [Zz]hang[Jj]iajie*|zhang|avatar|4)
+        ENV_NAME="ZhangJiajie (Avatar Mountain Pillars & Gorges)"
+        POSSIBLE_PATHS=(
+            "$AIRSIM_ZHANG_BIN"
+            "$SCRIPT_DIR/environments/ZhangJiajie/LinuxNoEditor/ZhangJiajie.sh"
+            "$SCRIPT_DIR/environments/ZhangJiajie/ZhangJiajie/LinuxNoEditor/ZhangJiajie.sh"
+            "$SCRIPT_DIR/environments/ZhangJiajie/LinuxZhangJiajie1.8.1/LinuxNoEditor/ZhangJiajie.sh"
+            "$HOME/Downloads/ZhangJiajie/LinuxNoEditor/ZhangJiajie.sh"
+            "$HOME/ZhangJiajie/LinuxNoEditor/ZhangJiajie.sh"
+            "/opt/ZhangJiajie/LinuxNoEditor/ZhangJiajie.sh"
         )
         ;;
     *)
@@ -197,14 +212,17 @@ pkill -9 -f "arducopter" 2>/dev/null || true
 pkill -9 -f "mavproxy" 2>/dev/null || true
 pkill -9 -f "sim_vehicle" 2>/dev/null || true
 pkill -9 -f "server.py" 2>/dev/null || true
-pkill -9 -f "LinuxNoEditor/.*\.sh|Binaries/Linux/.*-Linux|Blocks\.sh|AirSimNH\.sh|LandscapeMountains\.sh" 2>/dev/null || true
+pkill -9 -x "Blocks" 2>/dev/null || true
+pkill -9 -x "AirSimNH" 2>/dev/null || true
+pkill -9 -x "LandscapeMountains" 2>/dev/null || true
+pkill -9 -x "ZhangJiajie" 2>/dev/null || true
 rm -f "$SCRIPT_DIR"/eeprom*.bin 2>/dev/null || true
 fuser -k 8080/tcp 8765/tcp 2>/dev/null || true
 sleep 1
 
 if [ -n "$AIRSIM_EXECUTABLE" ]; then
     echo "Launching $ENV_NAME environment..."
-    setsid nice -n 5 "$AIRSIM_EXECUTABLE" -windowed -ResX=640 -ResY=480 -FPS=60 \
+    setsid nice -n 5 "$AIRSIM_EXECUTABLE" -windowed -NoMouseCapture -ResX=640 -ResY=480 -FPS=60 \
         -ExecCmds="r.Streaming.PoolSize 3000,sg.ShadowQuality 0,sg.PostProcessQuality 0,sg.TextureQuality 1,sg.EffectsQuality 0,sg.FoliageQuality 0,r.Shadow.CSM.MaxCascades 0,t.maxFPS 60,r.VSync 0" \
         > /tmp/airsim.log 2>&1 &
     AIRSIM_PID=$!

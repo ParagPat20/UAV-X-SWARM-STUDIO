@@ -184,6 +184,15 @@ chmod +x LinuxNoEditor/LandscapeMountains.sh
 cd ../..
 ```
 
+#### Option D: ZhangJiajie (Avatar Mountain Pillars & Gorges)
+```bash
+mkdir -p environments/ZhangJiajie && cd environments/ZhangJiajie
+wget https://github.com/microsoft/AirSim/releases/download/v1.8.0-linux/ZhangJiajie.zip
+unzip ZhangJiajie.zip
+chmod +x ZhangJiajie/LinuxNoEditor/ZhangJiajie.sh
+cd ../..
+```
+
 *(Note: `start_sitl.sh` automatically checks `./environments/` first, then scans `~/Downloads/`).*
 
 ---

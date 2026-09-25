@@ -15,6 +15,7 @@ import asyncio
 import threading
 import http.server
 import socketserver
+import urllib.parse
 from pymavlink import mavutil
 import websockets
 
@@ -447,6 +448,25 @@ class SwarmTelemetryManager:
                 except Exception:
                     self.airsim_client = None
             return self.airsim_client
+
+    def fetch_camera_frame(self, drone_idx, cam_name="0", image_type=0):
+        """Fetches live camera frame bytes from AirSim for UAV{drone_idx}."""
+        client = self.get_airsim_client()
+        if not client or not airsim:
+            return None
+        try:
+            uav_name = f"UAV{drone_idx}"
+            with self.airsim_lock:
+                req_cam = str(cam_name)
+                req_type = airsim.ImageType(image_type)
+                responses = client.simGetImages([
+                    airsim.ImageRequest(req_cam, req_type, False, False)
+                ], vehicle_name=uav_name)
+            if responses and len(responses) > 0 and len(responses[0].image_data_uint8) > 0:
+                return bytes(responses[0].image_data_uint8)
+        except Exception:
+            pass
+        return None
 
     def fetch_airsim_lidar_hits(self, drone_idx, d):
         """Fetches real 360 LiDAR point cloud hits from Microsoft AirSim environment."""
@@ -1671,17 +1691,61 @@ async def telemetry_broadcaster():
 
 
 class NoCacheHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        # Handle Live Camera Snapshot & Video Streaming
+        if self.path.startswith("/api/camera"):
+            parsed = urllib.parse.urlparse(self.path)
+            query = urllib.parse.parse_qs(parsed.query)
+            drone_id = int(query.get("id", ["1"])[0])
+            cam_name = query.get("cam", ["0"])[0]
+            img_type = int(query.get("type", ["0"])[0])
+
+            if "stream" in parsed.path:
+                self.send_response(200)
+                self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=--frame')
+                self.send_header('Cache-Control', 'no-cache, private')
+                self.end_headers()
+                try:
+                    while True:
+                        frame_bytes = manager.fetch_camera_frame(drone_id, cam_name, img_type)
+                        if frame_bytes:
+                            self.wfile.write(b"--frame\r\n")
+                            self.wfile.write(b"Content-Type: image/png\r\n\r\n")
+                            self.wfile.write(frame_bytes)
+                            self.wfile.write(b"\r\n")
+                        time.sleep(0.08) # ~12 FPS
+                except Exception:
+                    return
+            else:
+                frame_bytes = manager.fetch_camera_frame(drone_id, cam_name, img_type)
+                if frame_bytes:
+                    self.send_response(200)
+                    self.send_header('Content-type', 'image/png')
+                    self.send_header('Content-length', str(len(frame_bytes)))
+                    self.end_headers()
+                    self.wfile.write(frame_bytes)
+                    return
+                else:
+                    self.send_response(204)
+                    self.end_headers()
+                    return
+
+        super().do_GET()
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
         super().end_headers()
 
+class ThreadingHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
 def run_http_server():
     os.chdir(STATIC_DIR)
     handler = NoCacheHTTPRequestHandler
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", HTTP_PORT), handler) as httpd:
+    with ThreadingHTTPServer(("", HTTP_PORT), handler) as httpd:
         print(f"\033[1;32m★ UAV-X Swarm Studio Web GCS is running at: http://localhost:{HTTP_PORT}\033[0m")
         httpd.serve_forever()
 

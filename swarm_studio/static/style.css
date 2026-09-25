@@ -2283,3 +2283,420 @@ input[type="range"]::-webkit-slider-thumb:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-color-light);
 }
+
+/* ==========================================================================
+   Collapsible Live FPV Multi-Camera Video Deck
+   ========================================================================== */
+.fpv-deck {
+  position: fixed;
+  bottom: 24px;
+  left: 310px;
+  width: 460px;
+  background-color: rgba(10, 15, 22, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 245, 212, 0.35);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 245, 212, 0.15);
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fpv-deck.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(20px) scale(0.95);
+}
+
+.fpv-deck.collapsed .fpv-body {
+  display: none;
+}
+
+.fpv-deck.collapsed {
+  width: 320px;
+}
+
+.fpv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: linear-gradient(90deg, rgba(14, 23, 34, 0.98) 0%, rgba(10, 16, 24, 0.98) 100%);
+  border-bottom: 1px solid var(--border-color);
+  user-select: none;
+}
+
+.fpv-header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fpv-live-pulse-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgba(255, 59, 48, 0.2);
+  border: 1px solid rgba(255, 59, 48, 0.6);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.fpv-live-pulse-indicator .pulse-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #ff3b30;
+  border-radius: 50%;
+  animation: pulse-red 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-red {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 6px #ff3b30; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+.live-label {
+  font-size: 8px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #ff3b30;
+  letter-spacing: 0.5px;
+}
+
+.fpv-deck-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.fpv-channel-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 0 6px;
+}
+
+.fpv-tab {
+  background-color: var(--bg-surface-3);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 8.5px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 3px 6px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.fpv-tab:hover {
+  background-color: var(--bg-surface-2);
+  color: #fff;
+}
+
+.fpv-tab.active {
+  background: rgba(0, 245, 212, 0.15);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 6px rgba(0, 245, 212, 0.3);
+}
+
+.fpv-tab .tab-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.fpv-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fpv-select {
+  background-color: var(--bg-surface-3);
+  border: 1px solid var(--border-color);
+  color: #fff;
+  font-size: 8.5px;
+  padding: 3px 4px;
+  border-radius: var(--radius-xs);
+  outline: none;
+}
+
+.fpv-ctrl-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fpv-ctrl-btn:hover {
+  background-color: var(--bg-surface-2);
+  color: #fff;
+}
+
+.fpv-ctrl-btn.fpv-close-btn:hover {
+  background-color: rgba(255, 59, 48, 0.3);
+  color: #ff3b30;
+  border-color: #ff3b30;
+}
+
+.fpv-body {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  background-color: #000;
+  overflow: hidden;
+}
+
+.fpv-viewport-single {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.fpv-stream-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.fpv-hud-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.fpv-hud-telemetry-tl, .fpv-hud-telemetry-tr {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fpv-hud-telemetry-tr {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  text-align: right;
+}
+
+.fpv-hud-row {
+  display: flex;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.hud-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 8px;
+}
+
+.hud-val {
+  color: #fff;
+}
+
+.hud-mono {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.fpv-hud-telemetry-bl {
+  position: absolute;
+  bottom: 6px;
+  left: 10px;
+}
+
+.fpv-hud-telemetry-br {
+  position: absolute;
+  bottom: 6px;
+  right: 10px;
+}
+
+/* Artificial Horizon Reticle & Crosshair */
+.fpv-crosshair-reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120px;
+  height: 120px;
+  pointer-events: none;
+}
+
+.fpv-reticle-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(0, 245, 212, 0.75);
+  border-radius: 50%;
+}
+
+.fpv-reticle-line-h {
+  position: absolute;
+  top: 50%;
+  width: 25px;
+  height: 1.5px;
+  background-color: rgba(0, 245, 212, 0.75);
+  transform: translateY(-50%);
+}
+.fpv-reticle-line-h.left { left: 10px; }
+.fpv-reticle-line-h.right { right: 10px; }
+
+.fpv-reticle-line-v {
+  position: absolute;
+  left: 50%;
+  width: 1.5px;
+  height: 15px;
+  background-color: rgba(0, 245, 212, 0.75);
+  transform: translateX(-50%);
+}
+.fpv-reticle-line-v.top { top: 15px; }
+.fpv-reticle-line-v.bottom { bottom: 15px; }
+
+.fpv-horizon-ladder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  transition: transform 0.1s ease-out;
+}
+
+.ladder-bar {
+  width: 40px;
+  height: 1px;
+  background-color: rgba(0, 245, 212, 0.4);
+}
+
+.ladder-bar.bar-center {
+  width: 60px;
+  height: 1.5px;
+  background-color: rgba(0, 245, 212, 0.8);
+}
+
+.fpv-standby-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(10, 15, 22, 0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  text-align: center;
+}
+
+.fpv-standby-placeholder.hidden {
+  display: none;
+}
+
+.placeholder-icon {
+  font-size: 28px;
+}
+
+.placeholder-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--accent-cyan);
+}
+
+.placeholder-sub {
+  font-size: 8.5px;
+  color: var(--text-muted);
+}
+
+/* Quad Matrix Grid View */
+.fpv-viewport-matrix {
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  background-color: #0c1219;
+}
+
+.fpv-viewport-matrix.hidden {
+  display: none;
+}
+
+.fpv-matrix-grid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+}
+
+.fpv-matrix-cell {
+  position: relative;
+  background-color: #000;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.fpv-matrix-cell:hover {
+  border-color: var(--accent-cyan);
+}
+
+.fpv-matrix-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fpv-matrix-tag {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+}
