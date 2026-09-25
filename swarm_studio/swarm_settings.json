@@ -1,0 +1,10 @@
+{
+  "geofence_enabled": true,
+  "geofence_radius": 150.0,
+  "geofence_alt_max": 25.0,
+  "avoid_margin": 4.0,
+  "swarm_repel": 16.0,
+  "min_drone_dist": 3.2,
+  "solidify_rate": 1.5,
+  "spawn_num_drones": 5
+}

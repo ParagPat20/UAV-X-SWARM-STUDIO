@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UAV-X Swarm Studio — Autonomous GCS</title>
+  <meta name="description" content="Industrial Dark Minimalistic Ground Control Station for Autonomous Multi-UAV Swarms">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Three.js and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <!-- 3D Studio Canvas Container -->
+  <div id="canvas-container"></div>
+
+
+
+  <!-- Top Center Mission Notification HUD Overlay Container -->
+  <div class="top-mission-overlay" id="top-mission-overlay" style="display: none;">
+    <div class="mission-overlay-card" id="mission-overlay-card">
+      <div class="overlay-glow-bar" id="overlay-glow-bar"></div>
+      <div class="overlay-header-row">
+        <div class="overlay-badge" id="overlay-badge">
+          <span class="overlay-badge-dot"></span>
+          <span id="overlay-badge-text">🚨 SEARCH & RESCUE ARRIVAL</span>
+        </div>
+        <span class="overlay-time" id="overlay-time">JUST NOW</span>
+        <button class="overlay-close-btn" id="btn-overlay-close" title="Dismiss Notification">✕</button>
+      </div>
+      <div class="overlay-body">
+        <h3 class="overlay-title" id="overlay-title">UAV 3 Reached UAV 1's Crash Site</h3>
+        <p class="overlay-message" id="overlay-message">UAV 3 has arrived at the accident area and is currently holding position.</p>
+      </div>
+      <div class="overlay-actions" id="overlay-actions">
+        <!-- Dynamically populated action buttons -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Dark Minimalist Header Bar -->
+  <header class="top-nav-bar">
+    <div class="nav-left">
+      <div class="menu-brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </div>
+      <div class="brand-info">
+        <span class="brand-name">UAV-X SWARM STUDIO</span>
+        <span class="brand-badge">BVLOS AUTONOMOUS GCS</span>
+      </div>
+      <div class="quick-nav-actions">
+        <button class="top-action-btn" id="btn-open-slam-modal" title="Point Cloud Registry & SLAM Manager">
+          <span class="btn-icon">☁️</span>
+          <span>Point Cloud (<strong id="top-pointcloud-count">0 pts</strong>)</span>
+        </button>
+        <button class="top-action-btn" id="btn-quick-save-points" title="Quick Save Point Cloud (.XYZ)">
+          <span class="btn-icon">💾</span>
+          <span>Save Cloud</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Header Browser Status -->
+    <div class="nav-right">
+      <div class="object-browser-header">
+        <span class="browser-title">OBJECT BROWSER</span>
+        <span class="browser-badge" id="header-swarm-count">5 UAVs</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Left Minimalist Toolbar (Far Left Strip) -->
+  <nav class="side-tool-strip">
+    <button class="tool-btn active" id="tool-orbit" title="Orbit 3D Camera">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M3.6 9h16.8M3.6 15h16.8"></path>
+        <ellipse cx="12" cy="12" rx="4" ry="9"></ellipse>
+      </svg>
+      <span>Orbit</span>
+    </button>
+
+    <button class="tool-btn" id="tool-top" title="Top-Down Tactical Ortho">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+        <path d="M3 9h18M9 21V9"></path>
+      </svg>
+      <span>Top-Down</span>
+    </button>
+
+    <button class="tool-btn" id="tool-chase" title="Follow Selected Drone">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
+      </svg>
+      <span>Chase</span>
+    </button>
+
+    <div class="tool-divider"></div>
+
+    <button class="tool-btn active" id="tool-tails" title="Toggle Trajectory Tails">
+      <span class="tool-icon-text">✨</span>
+      <span>Tails</span>
+    </button>
+
+    <button class="tool-btn active" id="tool-droplines" title="Toggle Altitude Drop Lines">
+      <span class="tool-icon-text">📏</span>
+      <span>Alt Lines</span>
+    </button>
+
+    <button class="tool-btn active" id="tool-pointcloud" title="Toggle 3D LiDAR Point Cloud SLAM Map">
+      <span class="tool-icon-text">🌐</span>
+      <span>Points</span>
+    </button>
+
+    <button class="tool-btn" id="tool-slam-manager" title="Point Cloud Registry SLAM Manager (Trim & Save)">
+      <span class="tool-icon-text">☁️</span>
+      <span>SLAM Mgr</span>
+    </button>
+
+    <button class="tool-btn" id="tool-recenter" title="Recenter View">
+      <span class="tool-icon-text">🎯</span>
+      <span>Recenter</span>
+    </button>
+  </nav>
+
+  <!-- Left Swarm Command Deck Panel -->
+  <aside class="left-command-panel" id="command-deck">
+    <div class="panel-section-title">
+      <span>SWARM COMMAND DECK</span>
+      <span class="connection-pill live" id="ws-indicator">ONLINE</span>
+    </div>
+
+    <!-- Live Command Feedback Banner -->
+    <div class="command-feedback-banner" id="feedback-banner">
+      <div class="feedback-icon" id="feedback-icon">⚡</div>
+      <div class="feedback-details">
+        <span class="feedback-title" id="feedback-title">READY FOR COMMANDS</span>
+        <span class="feedback-subtitle" id="feedback-subtitle">All 5 UAVs connected & synchronized</span>
+      </div>
+      <span class="feedback-badge ok" id="feedback-status">STANDBY</span>
+    </div>
+
+    <!-- Primary Swarm Action Buttons -->
+    <div class="command-action-grid">
+      <button id="cmd-arm" class="deck-btn btn-arm" title="Arm motors on all swarm drones">
+        <span class="deck-btn-icon">⚡</span>
+        <span class="deck-btn-label">ARM ALL</span>
+        <div class="btn-spinner"></div>
+      </button>
+
+      <button id="cmd-disarm" class="deck-btn btn-disarm" title="Disarm motors immediately">
+        <span class="deck-btn-icon">🔒</span>
+        <span class="deck-btn-label">DISARM</span>
+        <div class="btn-spinner"></div>
+      </button>
+
+      <button id="cmd-takeoff" class="deck-btn btn-takeoff" title="Takeoff swarm to target altitude">
+        <span class="deck-btn-icon">🛫</span>
+        <span class="deck-btn-label">TAKEOFF</span>
+        <div class="btn-spinner"></div>
+      </button>
+
+      <button id="cmd-auto" class="deck-btn btn-auto" title="Begin autonomous swarm survey">
+        <span class="deck-btn-icon">🎯</span>
+        <span class="deck-btn-label">AUTO SURVEY</span>
+        <div class="btn-spinner"></div>
+      </button>
+
+      <button id="cmd-rtl" class="deck-btn btn-rtl" title="Return to Launch point">
+        <span class="deck-btn-icon">🏠</span>
+        <span class="deck-btn-label">SWARM RTL</span>
+        <div class="btn-spinner"></div>
+      </button>
+
+      <button id="cmd-land" class="deck-btn btn-land" title="Initiate vertical landing">
+        <span class="deck-btn-icon">🛬</span>
+        <span class="deck-btn-label">LAND ALL</span>
+        <div class="btn-spinner"></div>
+      </button>
+    </div>
+
+    <!-- Swarm Altitude Control Box -->
+    <div class="deck-card">
+      <div class="deck-card-header">
+        <span class="deck-card-title">SWARM ALTITUDE</span>
+        <span class="deck-card-val highlight-blue" id="slider-alt-val">5.0 m</span>
+      </div>
+      <div class="alt-slider-container">
+        <input type="range" id="slider-alt" min="1" max="50" step="0.5" value="5">
+        <button id="btn-apply-alt" class="deck-mini-btn btn-blue-glow">APPLY ALT</button>
+      </div>
+      <div class="alt-presets-row">
+        <button class="alt-chip" data-alt="3">3m</button>
+        <button class="alt-chip active" data-alt="5">5m</button>
+        <button class="alt-chip" data-alt="10">10m</button>
+        <button class="alt-chip" data-alt="20">20m</button>
+        <button class="alt-chip" data-alt="40">40m</button>
+      </div>
+    </div>
+
+    <!-- Swarm Flight Mode Selector Box -->
+    <div class="deck-card">
+      <div class="deck-card-header">
+        <span class="deck-card-title">SWARM FLIGHT MODE</span>
+        <span class="deck-card-val highlight-green" id="deck-current-mode">GUIDED</span>
+      </div>
+      <div class="mode-chips-grid">
+        <button class="mode-chip active" data-mode="GUIDED">GUIDED</button>
+        <button class="mode-chip" data-mode="AUTO">AUTO</button>
+        <button class="mode-chip" data-mode="LOITER">LOITER</button>
+        <button class="mode-chip" data-mode="RTL">RTL</button>
+        <button class="mode-chip" data-mode="LAND">LAND</button>
+        <button class="mode-chip" data-mode="POSHOLD">POSHOLD</button>
+        <button class="mode-chip" data-mode="STABILIZE">STABILIZE</button>
+        <button class="mode-chip" data-mode="BRAKE">BRAKE</button>
+      </div>
+    </div>
+
+    <!-- Choreography Formations Box -->
+    <div class="deck-card">
+      <div class="deck-card-header">
+        <span class="deck-card-title">SWARM FORMATIONS</span>
+        <span class="deck-card-val highlight-green">SYNCHRONIZED</span>
+      </div>
+      <div class="formations-grid">
+        <button class="formation-btn active" data-formation="line">
+          <span class="f-symbol">━</span> Line Formation
+        </button>
+        <button class="formation-btn" data-formation="v_shape">
+          <span class="f-symbol">▼</span> V-Shape Wedge
+        </button>
+        <button class="formation-btn" data-formation="grid">
+          <span class="f-symbol">⚏</span> Tactical Grid
+        </button>
+        <button class="formation-btn" data-formation="circle">
+          <span class="f-symbol">◯</span> Orbit Ring
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bottom Floating Golden Wave Telemetry Chart (Matching Reference Image) -->
+  <div class="bottom-wave-chart-card">
+    <div class="wave-chart-header">
+      <div class="wave-header-left">
+        <span class="wave-title">Swarm Real-Time Altitude Profile (m)</span>
+        <span class="wave-subtitle">LIVE 25Hz SITL TELEMETRY STREAM</span>
+      </div>
+      <div class="wave-legend">
+        <span class="legend-pill" style="--c: #00f5d4"><i class="dot"></i> UAV 1</span>
+        <span class="legend-pill" style="--c: #a855f7"><i class="dot"></i> UAV 2</span>
+        <span class="legend-pill" style="--c: #ff007f"><i class="dot"></i> UAV 3</span>
+        <span class="legend-pill" style="--c: #ffb703"><i class="dot"></i> UAV 4</span>
+        <span class="legend-pill" style="--c: #00e676"><i class="dot"></i> UAV 5</span>
+      </div>
+    </div>
+    <div class="chart-canvas-container">
+      <canvas id="altitude-wave-canvas" height="90"></canvas>
+    </div>
+  </div>
+
+  <!-- Right Object Inspector & UAV Telemetry Deck -->
+  <aside class="right-inspector-panel" id="telemetry-inspector">
+    <!-- Green Inspector Banner Header -->
+    <div class="inspector-banner">
+      <div class="inspector-banner-left">
+        <span class="banner-title">OBJECT INSPECTOR (SWARM)</span>
+        <span class="banner-badge" id="inspector-count-badge">5 UAVs ONLINE</span>
+      </div>
+      <button class="banner-toggle-btn" id="btn-toggle-inspector" title="Collapse Inspector">▲</button>
+    </div>
+
+    <!-- Inspector Sub-Tabs -->
+    <div class="inspector-tabs">
+      <button class="insp-tab active" data-tab="properties">PROPERTIES</button>
+      <button class="insp-tab" data-tab="settings">SETTINGS</button>
+      <button class="insp-tab" data-tab="performance">PERFORMANCE</button>
+      <button class="insp-tab" data-tab="logs">LOGS</button>
+    </div>
+
+    <!-- Tab 1: PROPERTIES (Scrollable UAV Telemetry Cards List) -->
+    <div class="tab-pane active" id="tab-pane-properties">
+      <div class="drones-card-list" id="drones-list">
+        <!-- Drone cards dynamically rendered by app.js -->
+      </div>
+    </div>
+
+    <!-- Tab 2: SETTINGS (Live Simulation & Parameter Controls + Full Restart) -->
+    <div class="tab-pane hidden" id="tab-pane-settings">
+      <div class="settings-panel-body">
+        
+        <!-- Action Card: Full System Restart -->
+        <div class="settings-card restart-card">
+          <div class="settings-card-header">
+            <span class="settings-card-title">⚡ SIMULATION CONTROL</span>
+            <span class="settings-badge red">HARD RESET</span>
+          </div>
+          <p class="settings-card-desc">Kill stale SITL processes, reset AirSim UDP physics & relaunch simulation.</p>
+          <div class="restart-controls-row">
+            <div class="form-group-inline">
+              <label>Spawn UAVs:</label>
+              <select id="select-restart-drones" class="settings-select">
+                <option value="1">1 Drone (UAV 1)</option>
+                <option value="2">2 Drones</option>
+                <option value="3">3 Drones</option>
+                <option value="4">4 Drones</option>
+                <option value="5">5 Drones (Swarm)</option>
+              </select>
+            </div>
+            <button id="btn-full-restart" class="btn-system-restart" title="Full Clean Restart of AirSim + ArduPilot SITL + Swarm Studio">
+              <span class="restart-icon">🔄</span> RESTART ALL
+            </button>
+          </div>
+        </div>
+
+        <!-- Settings Card: Fault Injection & Resilient Swarm Reconfiguration -->
+        <div class="settings-card fault-card">
+          <div class="settings-card-header">
+            <span class="settings-card-title">⚡ FAULT INJECTION & SWARM SAR</span>
+            <span class="settings-badge red">RESILIENCE TEST</span>
+          </div>
+          <p class="settings-card-desc">Simulate UAV motor cut/crashes. Nearest active UAV will automatically reconfigure and fly to the downed coordinates for Search & Rescue.</p>
+          
+          <div class="setting-item">
+            <div class="setting-label-row">
+              <span>Target UAV:</span>
+              <select id="select-fault-drone" class="settings-select">
+                <option value="1">UAV 1</option>
+                <option value="2">UAV 2</option>
+                <option value="3">UAV 3</option>
+                <option value="4">UAV 4</option>
+                <option value="5">UAV 5</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="fault-buttons-grid">
+            <button id="btn-fault-kill-drone" class="btn-fault-action red" title="Cut motors and simulate drone crash (triggers nearest UAV SAR dispatch)">
+              💀 Simulate Crash / Kill Drone
+            </button>
+            <button id="btn-fault-link-loss" class="btn-fault-action amber" title="Simulate RF communication failure">
+              📡 Simulate Link Loss
+            </button>
+            <button id="btn-fault-revive-all" class="btn-fault-action green" title="Restore all failed drones to active fleet">
+              🔄 Revive & Rejoin Swarm
+            </button>
+          </div>
+        </div>
+
+        <!-- Settings Card: Geofence & Disaster Zone -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <span class="settings-card-title">🛡️ GEOFENCE BOUNDARY</span>
+            <span class="settings-badge green" id="badge-geofence-status">ACTIVE</span>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-label-row">
+              <span>Geofence Radius:</span>
+              <strong class="highlight-green" id="val-set-fence-radius">85.0 m</strong>
+            </div>
+            <input type="range" id="input-set-fence-radius" min="40" max="150" step="5" value="85">
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label-row">
+              <span>Altitude Ceiling (Max Alt):</span>
+              <strong class="highlight-amber" id="val-set-fence-alt">25.0 m</strong>
+            </div>
+            <input type="range" id="input-set-fence-alt" min="10" max="50" step="5" value="25">
+          </div>
+        </div>
+
+        <!-- Settings Card: Flight Dynamics & Avoidance -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <span class="settings-card-title">🚀 FLIGHT & AVOIDANCE TUNING</span>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label-row">
+              <span>Obstacle Standoff (Min Distance):</span>
+              <strong class="highlight-blue" id="val-set-avoid-margin">4.0 m</strong>
+            </div>
+            <input type="range" id="input-set-avoid-margin" min="3.0" max="8.0" step="0.5" value="4.0">
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label-row">
+              <span>Inter-Drone Min Spacing (Safety Bubble):</span>
+              <strong class="highlight-blue" id="val-set-swarm-repel">3.0 m (16m Repel)</strong>
+            </div>
+            <input type="range" id="input-set-swarm-repel" min="3.0" max="25.0" step="1.0" value="16.0">
+          </div>
+        </div>
+
+        <!-- Settings Card: SLAM & Point Cloud -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <span class="settings-card-title">🧊 3D SLAM SOLIDIFICATION</span>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-label-row">
+              <span>Solidification Interval:</span>
+              <strong class="highlight-green" id="val-set-solidify-rate">1.5 s</strong>
+            </div>
+            <input type="range" id="input-set-solidify-rate" min="1.0" max="5.0" step="0.5" value="1.5">
+          </div>
+
+          <div class="setting-item-btns">
+            <button id="btn-clear-pointcloud-settings" class="btn-secondary-action">🗑️ Clear Point Cloud Map</button>
+          </div>
+        </div>
+
+        <!-- Settings Card: Local Persistence & Simulation Parameters Sync -->
+        <div class="settings-card" style="background: linear-gradient(180deg, rgba(0, 229, 255, 0.08) 0%, rgba(20, 26, 35, 0.95) 100%); border-color: rgba(0, 229, 255, 0.3);">
+          <div class="settings-card-header">
+            <span class="settings-card-title">💾 LOCAL PERSISTENCE & SIM SYNC</span>
+            <span class="settings-badge green" id="badge-params-sync">SYNCED</span>
+          </div>
+          <p class="settings-card-desc">Parameters automatically save locally to disk and refresh live flight limits in SITL MAVLink physics.</p>
+          <div class="setting-item-btns" style="display: flex; gap: 8px; margin-top: 6px;">
+            <button id="btn-save-settings" class="btn-fault-action green" style="flex: 1; padding: 8px 10px; font-weight: 700;">
+              💾 Save & Sync
+            </button>
+            <button id="btn-reset-settings" class="btn-fault-action amber" style="padding: 8px 10px;">
+              🔄 Defaults
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tab 3: PERFORMANCE (System Telemetry & Metrics) -->
+    <div class="tab-pane hidden" id="tab-pane-performance">
+      <div class="perf-panel-body">
+        <div class="perf-metric-card">
+          <div class="perf-title">Telemetry Update Frequency</div>
+          <div class="perf-val highlight-green" id="perf-freq">25.0 Hz</div>
+        </div>
+        <div class="perf-metric-card">
+          <div class="perf-title">WebSocket Socket Latency</div>
+          <div class="perf-val highlight-blue" id="perf-latency">&lt; 4 ms</div>
+        </div>
+        <div class="perf-metric-card">
+          <div class="perf-title">EKF3 Positioning Status</div>
+          <div class="perf-val highlight-green">3D Fix (Healthy)</div>
+        </div>
+        <div class="perf-metric-card">
+          <div class="perf-title">Point Cloud Draw Buffer</div>
+          <div class="perf-val highlight-amber" id="perf-pts-buffer">50,000 pts max</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: LOGS (Live Event Log Stream) -->
+    <div class="tab-pane hidden" id="tab-pane-logs">
+      <div class="logs-container" id="inspector-event-logs">
+        <!-- Log entries dynamically appended -->
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bottom Global Status Marquee Bar -->
+  <footer class="bottom-status-strip">
+    <div class="strip-item">
+      <span class="strip-label">DATUM:</span>
+      <span class="strip-val" id="bottom-datum">LAT: 47.64147 | LON: -122.14010</span>
+    </div>
+
+    <div class="strip-item">
+      <span class="strip-label">SWARM SPEED:</span>
+      <span class="strip-val highlight-green" id="bottom-speed">0.0 m/s</span>
+    </div>
+
+    <div class="strip-event-feed">
+      <span class="feed-icon">⚡</span>
+      <div class="feed-text" id="event-feed-text">UAV-X Swarm Studio ready. SITL MAVLink connected.</div>
+    </div>
+
+    <div class="strip-actions">
+      <button class="strip-btn" id="btn-fullscreen" title="Toggle Fullscreen">⛶ FULLSCREEN</button>
+    </div>
+  </footer>
+
+  <!-- 3D Drone Tooltip Overlay -->
+  <div id="drone-3d-tooltip" class="drone-3d-tooltip hidden">
+    <div class="tooltip-header">
+      <span class="tt-title" id="tt-title">UAV 1</span>
+      <span class="tt-phase" id="tt-phase">ARMED</span>
+    </div>
+    <div class="tooltip-grid">
+      <div><span>Alt:</span> <strong id="tt-alt">0.0m</strong></div>
+      <div><span>Speed:</span> <strong id="tt-speed">0.0m/s</strong></div>
+      <div><span>Batt:</span> <strong id="tt-batt">100%</strong></div>
+      <div><span>Fix:</span> <strong id="tt-fix">3D Fix</strong></div>
+      <div class="tt-msg-col"><span id="tt-msg">EKF3 using GPS</span></div>
+    </div>
+  </div>
+
+  <!-- Swarm Choreography Parameter Configuration Modal -->
+  <div id="formation-modal" class="modal-overlay hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge">✨</div>
+          <div>
+            <h3 class="modal-title" id="modal-form-title">CONFIGURE SWARM FORMATION</h3>
+            <span class="modal-subtitle">Synchronized Multi-UAV 3D Spatial Choreography</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="modal-btn-close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-left-params">
+          <!-- Formation Type Selection -->
+          <div class="form-group">
+            <label class="form-label">Formation Geometry</label>
+            <div class="formation-modal-grid">
+              <button class="modal-type-btn active" data-type="line">
+                <span class="mt-icon">━</span> <span>Line</span>
+              </button>
+              <button class="modal-type-btn" data-type="v_shape">
+                <span class="mt-icon">▼</span> <span>V-Shape</span>
+              </button>
+              <button class="modal-type-btn" data-type="grid">
+                <span class="mt-icon">⚏</span> <span>Grid</span>
+              </button>
+              <button class="modal-type-btn" data-type="circle">
+                <span class="mt-icon">◯</span> <span>Circle</span>
+              </button>
+              <button class="modal-type-btn" data-type="helix">
+                <span class="mt-icon">🌀</span> <span>3D Helix</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Parameter 1: Spacing / Radius -->
+          <div class="form-group" id="group-spacing">
+            <div class="form-label-row">
+              <label class="form-label" id="label-spacing">Inter-Drone Spacing</label>
+              <span class="form-val-badge" id="val-modal-spacing">4.0 m</span>
+            </div>
+            <input type="range" id="input-modal-spacing" min="2" max="25" step="0.5" value="4">
+          </div>
+
+          <!-- Parameter 2: Formation Flight Altitude -->
+          <div class="form-group">
+            <div class="form-label-row">
+              <label class="form-label">Target Altitude</label>
+              <span class="form-val-badge highlight-blue" id="val-modal-alt">5.0 m</span>
+            </div>
+            <input type="range" id="input-modal-alt" min="2" max="40" step="0.5" value="5">
+          </div>
+
+          <!-- Parameter 3: Heading Orientation Angle -->
+          <div class="form-group">
+            <div class="form-label-row">
+              <label class="form-label">Formation Heading</label>
+              <span class="form-val-badge highlight-amber" id="val-modal-heading">0° (NORTH)</span>
+            </div>
+            <input type="range" id="input-modal-heading" min="0" max="350" step="10" value="0">
+          </div>
+        </div>
+
+        <!-- Right Preview Canvas Box -->
+        <div class="modal-right-preview">
+          <div class="preview-header">
+            <span>2D SLOT PREVIEW (5 UAVs)</span>
+            <span class="preview-badge" id="preview-dim-badge">20m x 0m</span>
+          </div>
+          <div class="preview-canvas-wrap">
+            <canvas id="formation-preview-canvas" width="200" height="200"></canvas>
+          </div>
+          <div class="preview-hint">Drones will smoothly transition in GUIDED mode</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="modal-btn-cancel" id="modal-btn-cancel">CANCEL</button>
+        <button class="modal-btn-execute" id="modal-btn-execute">
+          <span class="btn-icon">🚀</span> <span>EXECUTE FORMATION</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Autonomous Swarm Frontier Exploration Confirmation Modal -->
+  <div id="survey-modal" class="modal-overlay hidden">
+    <div class="modal-dialog modal-dialog-lg">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge survey-icon-badge">🧭</div>
+          <div>
+            <h3 class="modal-title">AUTONOMOUS FRONTIER SCANNER</h3>
+            <span class="modal-subtitle">Point-Free Swarm Exploration & 3D LiDAR SLAM</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="survey-btn-close">✕</button>
+      </div>
+
+      <div class="modal-body survey-modal-body">
+        <div class="modal-left-params">
+          <!-- Direction Parameter: Exploration Azimuth Heading -->
+          <div class="form-group">
+            <div class="form-label-row">
+              <label class="form-label">Initial Exploration Direction</label>
+              <span class="form-val-badge highlight-green" id="val-survey-heading">0° (NORTH)</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px;">
+              <button type="button" class="quick-alt-btn" id="btn-dir-north" style="padding: 6px 2px;">⬆️ North (0°)</button>
+              <button type="button" class="quick-alt-btn" id="btn-dir-east" style="padding: 6px 2px;">➡️ East (90°)</button>
+              <button type="button" class="quick-alt-btn" id="btn-dir-south" style="padding: 6px 2px;">⬇️ South (180°)</button>
+              <button type="button" class="quick-alt-btn" id="btn-dir-west" style="padding: 6px 2px;">⬅️ West (270°)</button>
+            </div>
+            <input type="range" id="input-survey-heading" min="0" max="350" step="10" value="0">
+          </div>
+
+          <!-- Exploration Cruise Altitude -->
+          <div class="form-group">
+            <div class="form-label-row">
+              <label class="form-label">Exploration Cruise Altitude</label>
+              <span class="form-val-badge highlight-amber" id="val-survey-height">5.0 m</span>
+            </div>
+            <input type="range" id="input-survey-height" min="2" max="25" step="0.5" value="5">
+          </div>
+
+          <!-- Per-Drone Cruise Altitudes Section -->
+          <div class="survey-drone-alts-section">
+            <div class="survey-drone-alts-header">
+              <span class="form-label">SWARM SECTOR & ALTITUDE ASSIGNMENTS</span>
+              <div class="survey-alt-quick-actions">
+                <button class="quick-alt-btn" id="btn-stagger-alts" title="Stagger heights by +2m per drone">⚡ Stagger Altitudes</button>
+                <button class="quick-alt-btn" id="btn-uniform-alts" title="Set all drones to Base Height">🔄 Uniform Alt</button>
+              </div>
+            </div>
+            <div class="survey-drones-grid" id="survey-drones-list">
+              <!-- Drone altitude rows dynamically rendered by app.js -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 2D Live Preview Box -->
+        <div class="modal-right-preview survey-right-preview">
+          <div class="preview-header">
+            <span>360° POLAR RADAR EXPLORATION PREVIEW</span>
+            <span class="preview-badge highlight-green" id="survey-metric-area">360° MAPPING</span>
+          </div>
+          <div class="preview-canvas-wrap survey-canvas-wrap">
+            <canvas id="survey-preview-canvas" width="260" height="260"></canvas>
+          </div>
+          <div class="survey-metrics-bar">
+            <div class="s-metric"><span>Swarm Nodes:</span> <strong id="metric-swarm-n">1 UAVs</strong></div>
+            <div class="s-metric"><span>Exploration Mode:</span> <strong id="metric-lane-w">Free-Will SLAM</strong></div>
+            <div class="s-metric"><span>Standoff:</span> <strong id="metric-alt-span">4.5m Safe</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="modal-btn-cancel" id="survey-btn-cancel">CANCEL</button>
+        <button class="modal-btn-execute" id="survey-btn-execute" style="flex: 2;" title="Start real-time autonomous free-will exploration and 3D SLAM mapping">
+          <span class="btn-icon">🚀</span> <span>LAUNCH AUTONOMOUS EXPLORATION SCAN</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Point Cloud SLAM Registry Manager Modal -->
+  <div id="pointcloud-modal" class="modal-overlay hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge" style="background: rgba(0, 245, 212, 0.15); color: #00f5d4; border: 1px solid rgba(0, 245, 212, 0.4);">☁️</div>
+          <div>
+            <h3 class="modal-title">POINT CLOUD SLAM REGISTRY MANAGER</h3>
+            <span class="modal-subtitle">Prune Old Registries, Deconflict Points, and Export 3D Map</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="pointcloud-btn-close">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding: 18px; display: flex; flex-direction: column; gap: 16px;">
+        <!-- Live Memory Stat Box -->
+        <div class="deck-card" style="background: var(--bg-surface-2); border: 1px solid var(--border-color); padding: 12px; border-radius: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Active Registry Buffer</span>
+            <span class="form-val-badge highlight-green" id="modal-pointcloud-count-badge" style="font-size: 12px;">0 / 50,000 pts</span>
+          </div>
+          <div style="height: 6px; background: var(--bg-surface-3); border-radius: 3px; overflow: hidden; position: relative;">
+            <div id="modal-pointcloud-progress" style="height: 100%; width: 0%; background: linear-gradient(90deg, #00f5d4, #ffb703, #ff007f); transition: width 0.3s ease;"></div>
+          </div>
+        </div>
+
+        <!-- Section 1: Prune / Trim Oldest Registries -->
+        <div class="form-group" style="background: var(--bg-surface-2); border: 1px solid var(--border-color); padding: 14px; border-radius: 6px;">
+          <div class="form-label-row" style="margin-bottom: 8px;">
+            <label class="form-label" style="font-weight: 700; color: #fff;">Trim Oldest Registries</label>
+            <span class="form-val-badge highlight-amber" id="val-trim-percent" style="font-size: 12px; font-weight: 800;">50%</span>
+          </div>
+          <input type="range" id="input-trim-percent" min="5" max="95" step="5" value="50" style="width: 100%; margin: 8px 0;">
+          
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-bottom: 12px; font-family: var(--font-mono);">
+            <span>Delete oldest: <strong id="val-trim-delete-pts" style="color: var(--accent-red);">0 pts</strong></span>
+            <span>Keep newest: <strong id="val-trim-keep-pts" style="color: var(--accent-green);">0 pts</strong></span>
+          </div>
+
+          <div style="display: flex; gap: 8px;">
+            <button class="modal-btn-execute" id="btn-execute-trim" style="flex: 2; padding: 9px; font-size: 11px; background: linear-gradient(135deg, rgba(255, 183, 3, 0.2), rgba(239, 68, 68, 0.2)); border: 1px solid rgba(255, 183, 3, 0.5); color: #ffb703;">
+              <span>🗑️ TRIM OLDEST REGISTRIES</span>
+            </button>
+            <button class="modal-btn-cancel" id="btn-execute-purge" style="flex: 1; padding: 9px; font-size: 11px; border-color: rgba(239, 68, 68, 0.4); color: var(--accent-red);">
+              <span>⚠️ PURGE ALL</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section 2: Export & Save Point Cloud -->
+        <div class="form-group" style="background: var(--bg-surface-2); border: 1px solid var(--border-color); padding: 14px; border-radius: 6px;">
+          <label class="form-label" style="font-weight: 700; color: #fff; margin-bottom: 8px; display: block;">Save / Export Point Cloud</label>
+          
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px;">
+            <button class="modal-type-btn active" data-export-format="xyz" id="fmt-xyz" style="padding: 8px 4px; font-size: 10px; text-align: center;">
+              <span>.XYZ (RGB)</span>
+            </button>
+            <button class="modal-type-btn" data-export-format="pcd" id="fmt-pcd" style="padding: 8px 4px; font-size: 10px; text-align: center;">
+              <span>.PCD (ROS)</span>
+            </button>
+            <button class="modal-type-btn" data-export-format="json" id="fmt-json" style="padding: 8px 4px; font-size: 10px; text-align: center;">
+              <span>.JSON (Geo)</span>
+            </button>
+          </div>
+
+          <button class="modal-btn-execute" id="btn-execute-export" style="width: 100%; padding: 10px; font-size: 11px; background: linear-gradient(135deg, rgba(0, 245, 212, 0.2), rgba(0, 136, 255, 0.2)); border: 1px solid rgba(0, 245, 212, 0.5); color: #00f5d4;">
+            <span>💾 EXPORT & DOWNLOAD POINT CLOUD</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding: 12px 18px;">
+        <button class="modal-btn-cancel" id="pointcloud-btn-done" style="width: 100%;">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
