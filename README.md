@@ -86,9 +86,27 @@
 
 ---
 
-## 💻 Complete From-Scratch Setup Guide (Blank Machine to Live Swarm)
+## 🚀 1-Click Automated Setup (Fastest)
 
-Follow these step-by-step instructions to set up the entire simulation and GCS on a **fresh, blank Ubuntu 20.04 / 22.04 / 24.04** system.
+If you are on a **fresh/blank Ubuntu (20.04 / 22.04 / 24.04)** machine, run this single automated script to install **everything** (System tools, Python venv, ArduPilot SITL, and AirSim simulation):
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/ParagPat20/UAV-X-SWARM-STUDIO.git ~/UAV-X-SWARM-STUDIO
+cd ~/UAV-X-SWARM-STUDIO
+
+# 2. Run 1-click installer (Installs packages, python venv, ardupilot SITL & AirSim)
+./setup_all.sh
+
+# 3. Launch Swarm Simulation
+./start_sitl.sh 5
+```
+
+---
+
+## 💻 Step-by-Step Manual Setup Guide
+
+If you prefer to configure each component step-by-step:
 
 ### Step 1: System Prerequisites
 Open a terminal and install base development tools:
@@ -98,10 +116,14 @@ sudo apt update && sudo apt install -y \
     python3 \
     python3-pip \
     python3-venv \
+    python3-dev \
+    build-essential \
     unzip \
     wget \
     curl \
-    psmisc
+    psmisc \
+    libxml2-dev \
+    libxslt-dev
 ```
 
 ---
