@@ -125,25 +125,34 @@ pip install -r requirements.txt
 
 ---
 
-### Step 4: Download Microsoft AirSim Binary Environment
-Microsoft AirSim binaries are large pre-built Unreal Engine environments (~500MB) and are downloaded directly from the official Microsoft release:
+### Step 4: Download Microsoft AirSim Binary Environments
+Microsoft AirSim provides pre-built Unreal Engine environments (~500MB to 1.2GB each). UAV-X Swarm Studio supports **Blocks**, **AirSimNH (Urban Neighborhood)**, and **LandscapeMountains (Rugged BVLOS Terrain)**:
 
+#### Option A: Blocks (City & Obstacle Grid — Recommended Default)
 ```bash
-# 1. Create directory for AirSim
-mkdir -p ~/Downloads/Blocks
-cd ~/Downloads/Blocks
-
-# 2. Download the official Microsoft AirSim Linux Blocks environment
+mkdir -p ~/Downloads/Blocks && cd ~/Downloads/Blocks
 wget https://github.com/microsoft/AirSim/releases/download/v1.8.1-linux/Blocks.zip
-
-# 3. Extract the binary
 unzip Blocks.zip -d LinuxBlocks1.8.1
-
-# 4. Grant executable permissions to Blocks.sh
 chmod +x ~/Downloads/Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh
 ```
 
-*(Note: `start_sitl.sh` automatically checks for `~/Downloads/Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh` by default).*
+#### Option B: AirSimNH (Urban Residential Neighborhood)
+```bash
+mkdir -p ~/Downloads/AirSimNH && cd ~/Downloads/AirSimNH
+wget https://github.com/microsoft/AirSim/releases/download/v1.8.1-linux/AirSimNH.zip
+unzip AirSimNH.zip
+chmod +x ~/Downloads/AirSimNH/LinuxNoEditor/AirSimNH.sh
+```
+
+#### Option C: LandscapeMountains (Rugged Mountains & BVLOS Terrain)
+```bash
+mkdir -p ~/Downloads/LandscapeMountains && cd ~/Downloads/LandscapeMountains
+wget https://github.com/microsoft/AirSim/releases/download/v1.8.1-linux/LandscapeMountains.zip
+unzip LandscapeMountains.zip
+chmod +x ~/Downloads/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh
+```
+
+*(Note: `start_sitl.sh` automatically scans standard download directories for any of these 3 environments).*
 
 ---
 
@@ -169,16 +178,26 @@ source ~/.profile
 ---
 
 ### Step 6: Launch Multi-UAV Swarm Simulation & GCS
-You are ready to launch! Run the master launcher script:
+Launch the full simulation with your choice of environment:
 
 ```bash
 cd ~/UAV-X-SWARM-STUDIO
-./start_sitl.sh 5
+
+# Syntax: ./start_sitl.sh <number_of_drones> <environment>
+
+# 1. Launch 5 Drones in Blocks (Default)
+./start_sitl.sh 5 Blocks
+
+# 2. Launch 5 Drones in AirSimNH (Urban Neighborhood)
+./start_sitl.sh 5 AirSimNH
+
+# 3. Launch 5 Drones in LandscapeMountains (BVLOS Terrain)
+./start_sitl.sh 5 LandscapeMountains
 ```
 
 This single command automatically:
 1. Generates `~/Documents/AirSim/settings.json` with 5 multi-rotor drones equipped with 360° LiDAR & rangefinders.
-2. Launches Microsoft AirSim Unreal Engine physics.
+2. Launches the chosen Microsoft AirSim Unreal Engine environment.
 3. Launches 5 ArduCopter SITL instances communicating over MAVLink UDP ports (5762, 5772, 5782, 5792, 5802).
 4. Launches the UAV-X Swarm Studio GCS backend server (`server.py`) on port **8080** and WebSocket on **8765**.
 5. Opens the standalone UAV-X Swarm Studio interface in your browser.

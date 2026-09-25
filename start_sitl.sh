@@ -1,6 +1,7 @@
 #!/bin/bash
 # ==============================================================================
-# UAV-X Swarm Studio — Multi-UAV SITL + AirSim Simulation Launcher
+# UAV-X Swarm Studio — Multi-UAV SITL + Multi-Environment Simulation Launcher
+# Supports: Blocks | AirSimNH (Neighborhood) | LandscapeMountains (Terrain)
 # ==============================================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -10,15 +11,13 @@ if [ -d "$HOME/venv-ardupilot" ]; then
     source "$HOME/venv-ardupilot/bin/activate"
 fi
 
-# Simulation & Binary paths (can be overridden via environment variables)
-AIRSIM_BIN="${AIRSIM_BIN:-$HOME/Downloads/Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh}"
 SITL_CMD="${SITL_CMD:-$HOME/ardupilot/Tools/autotest/sim_vehicle.py}"
 
 cleanup() {
     trap - INT TERM EXIT
     stty sane
     echo ""
-    echo "Shutting down SITL, Swarm Studio, Browser and Blocks..."
+    echo "Shutting down SITL, Swarm Studio, Browser and AirSim environments..."
     pkill -9 -f "arducopter" 2>/dev/null || true
     pkill -9 -f "mavproxy" 2>/dev/null || true
     pkill -9 -f "sim_vehicle" 2>/dev/null || true
@@ -27,12 +26,13 @@ cleanup() {
     pkill -9 -f "localhost:8080" 2>/dev/null || true
     pkill -9 -f "UAV-X Swarm Studio" 2>/dev/null || true
     [ -n "$AIRSIM_PID" ] && kill -9 "$AIRSIM_PID" 2>/dev/null || true
-    pkill -9 -f "Blocks|AirSimNH|Africa_001" 2>/dev/null || true
+    pkill -9 -f "Blocks|AirSimNH|LandscapeMountains|Africa_001" 2>/dev/null || true
     fuser -k 8080/tcp 8765/tcp 2>/dev/null || true
     exit 0
 }
 trap cleanup INT TERM EXIT
 
+# --- 1. Parse Arguments: Number of Drones & AirSim Environment ---
 if [ -n "$1" ]; then
     num_drones="$1"
 else
@@ -46,13 +46,68 @@ if ! [[ "$num_drones" =~ ^[0-9]+$ ]] || [ "$num_drones" -lt 1 ]; then
     exit 1
 fi
 
+ENV_CHOICE="${2:-${AIRSIM_ENV:-Blocks}}"
+
+# Auto-detect Environment and Executable Path
+case "$ENV_CHOICE" in
+    [Aa]ir[Ss]im[Nn][Hh]|nh|NH|neighborhood|2)
+        ENV_NAME="AirSimNH (Urban Neighborhood)"
+        POSSIBLE_PATHS=(
+            "$AIRSIM_NH_BIN"
+            "$HOME/Downloads/AirSimNH/LinuxNoEditor/AirSimNH.sh"
+            "$HOME/Downloads/AirSimNH/LinuxAirSimNH1.8.1/LinuxNoEditor/AirSimNH.sh"
+            "$HOME/AirSimNH/LinuxNoEditor/AirSimNH.sh"
+            "/opt/AirSimNH/LinuxNoEditor/AirSimNH.sh"
+        )
+        ;;
+    [Ll]andscape*|[Mm]ountain*|mountains|3)
+        ENV_NAME="LandscapeMountains (Mountain BVLOS)"
+        POSSIBLE_PATHS=(
+            "$AIRSIM_MOUNTAINS_BIN"
+            "$HOME/Downloads/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
+            "$HOME/Downloads/LandscapeMountains/LinuxLandscapeMountains1.8.1/LinuxNoEditor/LandscapeMountains.sh"
+            "$HOME/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
+            "/opt/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
+        )
+        ;;
+    *)
+        ENV_NAME="Blocks (Obstacle City Grid)"
+        POSSIBLE_PATHS=(
+            "$AIRSIM_BIN"
+            "$HOME/Downloads/Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh"
+            "$HOME/Downloads/Blocks/LinuxNoEditor/Blocks.sh"
+            "$HOME/Blocks/LinuxNoEditor/Blocks.sh"
+            "/opt/Blocks/LinuxNoEditor/Blocks.sh"
+        )
+        ;;
+esac
+
+AIRSIM_EXECUTABLE=""
+for p in "${POSSIBLE_PATHS[@]}"; do
+    if [ -n "$p" ] && [ -f "$p" ]; then
+        AIRSIM_EXECUTABLE="$p"
+        break
+    fi
+done
+
+echo "================================================================================"
+echo "★ UAV-X SWARM SIMULATION CONFIGURATION"
+echo "  Fleet Size    : $num_drones Multi-Rotor Drones (UAV 1 -> UAV $num_drones)"
+echo "  Environment   : $ENV_NAME"
+if [ -n "$AIRSIM_EXECUTABLE" ]; then
+    echo "  Binary Path   : $AIRSIM_EXECUTABLE"
+else
+    echo "  Binary Path   : Auto-launch skipped (no pre-built binary found at standard path)"
+fi
+echo "================================================================================"
+
 WIPE_ARG="-w"
 vehicle="ArduCopter"
 frame="airsim-copter"
 FRAME_ARG="-f $frame"
 
-# 1. Dynamically configure ~/Documents/AirSim/settings.json
-echo "Configuring AirSim settings for $num_drones drone(s)..."
+# --- 2. Dynamically configure ~/Documents/AirSim/settings.json ---
+echo "Generating multi-UAV sensor & physics settings..."
 python3 - <<EOF
 import json, os
 
@@ -123,4 +178,4 @@ settings = {
 with open(settings_path, "w") as f:
     json.dump(settings, f, indent=2)
 
-print(f"Saved settings.json with {num} vehicle(s) and {len(subwindows)} subwindow camera(s).")
+print(f"AirSim multi-drone configuration generated for {num} vehicle(s).")
