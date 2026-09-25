@@ -63,8 +63,8 @@
 ```
 ├── .gitignore
 ├── LICENSE
-├── README.md
-├── requirements.txt
+├── README.md                  # Complete Installation & Quickstart Guide
+├── requirements.txt           # Python dependencies
 ├── start_sitl.sh              # Master launcher for AirSim + SITL + Web GCS
 ├── restart_simulation.sh      # Clean process killer & relauncher
 ├── check_all_drones_params.py # MAVLink parameter verification script
@@ -77,7 +77,7 @@
 │   └── UAV_X_CHALLENGE_CHECKLIST.md
 └── swarm_studio/              # GCS Backend & Frontend
     ├── server.py              # WebSocket telemetry server & survey controller
-    ├── swarm_settings.json    # Local configuration file
+    ├── swarm_settings.json    # Local persistent parameters file
     └── static/
         ├── index.html         # Modern GCS HTML5 UI
         ├── style.css          # Industrial dark glassmorphism stylesheet
@@ -86,40 +86,102 @@
 
 ---
 
-## 🚀 Quickstart Guide
+## 💻 Complete From-Scratch Setup Guide (Blank Machine to Live Swarm)
 
-### 1. Prerequisites
-- **Ubuntu 20.04 / 22.04 / 24.04 LTS**
-- **Python 3.10+**
-- **ArduPilot SITL** (`sim_vehicle.py`)
-- **Microsoft AirSim** (e.g. `LinuxBlocks1.8.1`)
-- **Google Chrome** / **Chromium** (Optional, for standalone GCS app window)
+Follow these step-by-step instructions to set up the entire simulation and GCS on a **fresh, blank Ubuntu 20.04 / 22.04 / 24.04** system.
 
-### 2. Installation
+### Step 1: System Prerequisites
+Open a terminal and install base development tools:
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/uav-x-swarm-studio.git
-cd uav-x-swarm-studio
+sudo apt update && sudo apt install -y \
+    git \
+    python3 \
+    python3-pip \
+    python3-venv \
+    unzip \
+    wget \
+    curl \
+    psmisc
+```
 
-# Install Python dependencies
+---
+
+### Step 2: Clone this Repository
+```bash
+git clone https://github.com/ParagPat20/UAV-X-SWARM-STUDIO.git ~/UAV-X-SWARM-STUDIO
+cd ~/UAV-X-SWARM-STUDIO
+```
+
+---
+
+### Step 3: Python Environment & Dependencies
+Create a Python virtual environment and install dependencies:
+```bash
+python3 -m venv ~/venv-ardupilot
+source ~/venv-ardupilot/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 3. Running the Simulation & GCS
+---
+
+### Step 4: Download Microsoft AirSim Binary Environment
+Microsoft AirSim binaries are large pre-built Unreal Engine environments (~500MB) and are downloaded directly from the official Microsoft release:
+
 ```bash
-# Launch a 5-drone simulation with AirSim and Swarm Studio
+# 1. Create directory for AirSim
+mkdir -p ~/Downloads/Blocks
+cd ~/Downloads/Blocks
+
+# 2. Download the official Microsoft AirSim Linux Blocks environment
+wget https://github.com/microsoft/AirSim/releases/download/v1.8.1-linux/Blocks.zip
+
+# 3. Extract the binary
+unzip Blocks.zip -d LinuxBlocks1.8.1
+
+# 4. Grant executable permissions to Blocks.sh
+chmod +x ~/Downloads/Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh
+```
+
+*(Note: `start_sitl.sh` automatically checks for `~/Downloads/Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh` by default).*
+
+---
+
+### Step 5: Install ArduPilot SITL Simulator
+Install the ArduPilot multi-rotor simulator:
+
+```bash
+# 1. Clone ArduPilot repository
+git clone --recurse-submodules https://github.com/ArduPilot/ardupilot.git ~/ardupilot
+cd ~/ardupilot
+
+# 2. Run ArduPilot prerequisites installation script
+Tools/environment_install/install-prereqs-ubuntu.sh -y
+
+# 3. Reload environment variables
+source ~/.profile
+
+# 4. Build ArduCopter for SITL
+./waf configure --board sitl
+./waf copter
+```
+
+---
+
+### Step 6: Launch Multi-UAV Swarm Simulation & GCS
+You are ready to launch! Run the master launcher script:
+
+```bash
+cd ~/UAV-X-SWARM-STUDIO
 ./start_sitl.sh 5
 ```
 
-Once running:
-- Open your browser at **`http://localhost:8080`**
-- WebSocket telemetry connects automatically at **`ws://localhost:8765`**
-
-### 4. Standalone Web GCS Server Only
-If you are already running SITL or real UAV hardware over MAVLink:
-```bash
-python3 swarm_studio/server.py
-```
+This single command automatically:
+1. Generates `~/Documents/AirSim/settings.json` with 5 multi-rotor drones equipped with 360° LiDAR & rangefinders.
+2. Launches Microsoft AirSim Unreal Engine physics.
+3. Launches 5 ArduCopter SITL instances communicating over MAVLink UDP ports (5762, 5772, 5782, 5792, 5802).
+4. Launches the UAV-X Swarm Studio GCS backend server (`server.py`) on port **8080** and WebSocket on **8765**.
+5. Opens the standalone UAV-X Swarm Studio interface in your browser.
 
 ---
 
@@ -133,7 +195,7 @@ python3 swarm_studio/server.py
 | **AUTO SURVEY** | Launches autonomous 360° frontier exploration & reactive SLAM |
 | **SWARM RTL** | Commands all drones to Return to Launch coordinates |
 | **LAND ALL** | Commands immediate vertical descent and landing |
-| **💀 Kill Drone** | Injects motor cutoff fault on target UAV to test SAR rescue handover |
+| **💀 Kill Drone** | Injects motor cutoff fault on target UAV to test dynamic SAR rescue handover |
 | **💾 Save & Sync** | Persists flight tuning parameters locally and pushes live MAVLink limits |
 
 ---
