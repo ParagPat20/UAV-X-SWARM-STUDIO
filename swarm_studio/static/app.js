@@ -2608,12 +2608,36 @@ function initSurveyModal() {
       }
     });
 
+    // Check if any drone is still initializing EKF / calibrating sensors
+    const dronesList = Object.values(state.drones);
+    const isCalibrating = dronesList.some(d => {
+      const t = d.telemetry || {};
+      const statusMsg = (t.last_status_msg || "").toUpperCase();
+      const phase = (t.flight_phase || "").toUpperCase();
+      return (!t.armed || (t.alt || 0) < 0.8) && (statusMsg.includes("EKF") || statusMsg.includes("CALIBRAT") || phase.includes("INIT") || phase.includes("EKF"));
+    });
+
     const activeCount = Object.keys(state.drones).length || 1;
-    setFeedbackBanner(
-      "AUTONOMOUS EXPLORATION LAUNCHED",
-      `Swarm scanning initiated: ${cfg.heading}° azimuth, ${cfg.height || 5.0}m alt across ${activeCount} UAVs`,
-      "exec"
-    );
+    if (isCalibrating) {
+      showMissionOverlay({
+        type: "warn",
+        badge: "⏳ EKF CALIBRATION IN PROGRESS",
+        title: "Sensors & GPS Calibrating",
+        message: "Swarm is initializing EKF attitude & position lock. Autonomous survey is queued and will automatically take off as soon as all UAVs are ready!",
+        timeout: 6000
+      });
+      setFeedbackBanner(
+        "⏳ AUTONOMOUS SURVEY QUEUED",
+        "Sensors calibrating. Swarm will automatically arm & take off once EKF is ready...",
+        "warn"
+      );
+    } else {
+      setFeedbackBanner(
+        "AUTONOMOUS EXPLORATION LAUNCHED",
+        `Swarm scanning initiated: ${cfg.heading}° azimuth, ${cfg.height || 5.0}m alt across ${activeCount} UAVs`,
+        "exec"
+      );
+    }
     logEvent(`Autonomous Frontier Exploration Dispatched: Heading ${cfg.heading}° across ${activeCount} UAVs`);
   });
 }

@@ -335,8 +335,12 @@ class SwarmTelemetryManager:
                             res_str = res_names.get(msg.result, str(msg.result))
                             d["last_ack"] = f"ACK: {res_str}"
                             if msg.result != 0:
-                                d["last_status_msg"] = f"Command {res_str}"
-                                d["status_severity"] = 4  # Warning
+                                if not d.get("ekf_ready", False) or d.get("alt", 0.0) < 0.5:
+                                    d["last_status_msg"] = "⏳ Calibrating EKF/Sensors..."
+                                    d["status_severity"] = 6
+                                else:
+                                    d["last_status_msg"] = f"Command {res_str}"
+                                    d["status_severity"] = 4  # Warning
 
                         elif mtype == 'SYS_STATUS':
                             if msg.battery_remaining != -1:
@@ -710,9 +714,14 @@ class SwarmTelemetryManager:
                     center_x = s.get("center_x", 0.0)
                     center_z = s.get("center_z", 0.0)
 
-                    # 1. Automatic Arm & Takeoff handling with rate limiting to avoid COMMAND_ACK: FAILED floods
+                    # 1. Automatic Arm & Takeoff handling with EKF readiness check & rate limiting
                     now_ts = time.time()
                     if not d["armed"] or d["alt"] < 0.8:
+                        if not d.get("ekf_ready", True) or d["lat"] == 0.0:
+                            d["flight_phase"] = "WAITING FOR EKF..."
+                            d["last_status_msg"] = "⏳ Calibrating EKF/GPS lock before launch..."
+                            continue
+
                         last_to = s.get("last_takeoff_cmd_ts", 0.0)
                         if now_ts - last_to > 3.0:
                             s["last_takeoff_cmd_ts"] = now_ts
@@ -1349,8 +1358,12 @@ class SwarmTelemetryManager:
                         }
                         self.guided_survey_active = True
                         d["survey_waypoints"] = []
-                        d["last_status_msg"] = f"Frontier Exploration: Sector {primary_sector:.0f}° @ {drone_alt:.1f}m"
-                        d["flight_phase"] = f"EXPLORING SECTOR {primary_sector:.0f}°"
+                        if not d.get("armed", False) and (not d.get("ekf_ready", False) or d.get("alt", 0.0) < 0.5):
+                            d["last_status_msg"] = "⏳ Survey Queued: Waiting for EKF lock..."
+                            d["flight_phase"] = "QUEUED (WAITING EKF)"
+                        else:
+                            d["last_status_msg"] = f"Frontier Exploration: Sector {primary_sector:.0f}° @ {drone_alt:.1f}m"
+                            d["flight_phase"] = f"EXPLORING SECTOR {primary_sector:.0f}°"
                         conn.set_mode(4)  # GUIDED
                     else:
                         gps_drones = [dr for dr in active_list if dr["lat"] != 0.0 and dr["lon"] != 0.0]
