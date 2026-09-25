@@ -55,6 +55,7 @@ case "$ENV_CHOICE" in
         POSSIBLE_PATHS=(
             "$AIRSIM_NH_BIN"
             "$HOME/Downloads/AirSimNH/LinuxNoEditor/AirSimNH.sh"
+            "$HOME/Downloads/AirSimNH/AirSimNH/LinuxNoEditor/AirSimNH.sh"
             "$HOME/Downloads/AirSimNH/LinuxAirSimNH1.8.1/LinuxNoEditor/AirSimNH.sh"
             "$HOME/AirSimNH/LinuxNoEditor/AirSimNH.sh"
             "/opt/AirSimNH/LinuxNoEditor/AirSimNH.sh"
@@ -65,6 +66,7 @@ case "$ENV_CHOICE" in
         POSSIBLE_PATHS=(
             "$AIRSIM_MOUNTAINS_BIN"
             "$HOME/Downloads/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
+            "$HOME/Downloads/LandscapeMountains/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
             "$HOME/Downloads/LandscapeMountains/LinuxLandscapeMountains1.8.1/LinuxNoEditor/LandscapeMountains.sh"
             "$HOME/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
             "/opt/LandscapeMountains/LinuxNoEditor/LandscapeMountains.sh"
@@ -179,3 +181,62 @@ with open(settings_path, "w") as f:
     json.dump(settings, f, indent=2)
 
 print(f"AirSim multi-drone configuration generated for {num} vehicle(s).")
+EOF
+
+# --- 3. Clean previous instances and launch AirSim ---
+echo "Cleaning up any old simulation and GCS processes..."
+pkill -9 -f "Blocks|AirSimNH|LandscapeMountains|Africa_001|arducopter|mavproxy" 2>/dev/null || true
+pkill -9 -f "server.py" 2>/dev/null || true
+rm -f "$SCRIPT_DIR"/eeprom*.bin 2>/dev/null || true
+fuser -k 8080/tcp 8765/tcp 2>/dev/null || true
+sleep 1
+
+if [ -n "$AIRSIM_EXECUTABLE" ]; then
+    echo "Launching $ENV_NAME environment..."
+    setsid nice -n 5 "$AIRSIM_EXECUTABLE" -windowed -ResX=640 -ResY=480 -FPS=60 \
+        -ExecCmds="r.Streaming.PoolSize 3000,sg.ShadowQuality 0,sg.PostProcessQuality 0,sg.TextureQuality 1,sg.EffectsQuality 0,sg.FoliageQuality 0,r.Shadow.CSM.MaxCascades 0,t.maxFPS 60,r.VSync 0" \
+        > /tmp/airsim.log 2>&1 &
+    AIRSIM_PID=$!
+    echo "Waiting 6 seconds for AirSim to initialize map and physics..."
+    sleep 6
+else
+    echo "AirSim executable not found. Running SITL in standalone mode."
+fi
+
+# --- 4. Launch UAV-X Swarm Studio Server & App Window ---
+echo "Starting UAV-X Swarm Studio Backend Server..."
+python3 "$SCRIPT_DIR/swarm_studio/server.py" > /tmp/swarm_studio.log 2>&1 &
+sleep 1
+
+echo "Launching UAV-X Swarm Studio Desktop Window..."
+if command -v google-chrome &> /dev/null; then
+    google-chrome --app=http://localhost:8080 --window-size=1366,820 --window-position=100,60 --class="UAV-X Swarm Studio" > /dev/null 2>&1 &
+    BROWSER_PID=$!
+elif command -v chromium &> /dev/null; then
+    chromium --app=http://localhost:8080 --window-size=1366,820 > /dev/null 2>&1 &
+    BROWSER_PID=$!
+else
+    xdg-open http://localhost:8080 > /dev/null 2>&1 &
+    BROWSER_PID=$!
+fi
+
+# --- 5. Automatic Parameter Verification Watcher ---
+PARAM_FILE=""
+if [ -f "$SCRIPT_DIR/swarm_params.parm" ]; then
+    PARAM_FILE="--add-param-file=$SCRIPT_DIR/swarm_params.parm"
+elif [ -f "$HOME/swarm_params.parm" ]; then
+    PARAM_FILE="--add-param-file=$HOME/swarm_params.parm"
+fi
+
+if [ -f "$SCRIPT_DIR/check_all_drones_params.py" ]; then
+    (
+        sleep 9
+        echo ""
+        echo "================================================================================"
+        python3 "$SCRIPT_DIR/check_all_drones_params.py" "$num_drones"
+    ) &
+fi
+
+# --- 6. Start SITL in foreground (MAVProxy needs stdin) ---
+echo "Starting $num_drones $vehicle(s) in SITL with clean default parameters..."
+$SITL_CMD -v $vehicle $FRAME_ARG $WIPE_ARG $PARAM_FILE -N --count $num_drones --auto-sysid --console "$@"
