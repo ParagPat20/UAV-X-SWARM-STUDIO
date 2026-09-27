@@ -273,6 +273,65 @@ function buildStudioGrid() {
 // ==========================================================================
 // 3D Visual Geofence & Boundary Barrier Visualizer
 // ==========================================================================
+// 3D RF Link Topology Mesh
+// ==========================================================================
+let rfMeshGroup = null;
+let gcsMarker = null;
+
+function updateRFMeshVisual(dronesData, gcsPos) {
+  if (!rfMeshGroup) {
+    rfMeshGroup = new THREE.Group();
+    scene.add(rfMeshGroup);
+  }
+  
+  // Clear previous lines
+  while(rfMeshGroup.children.length > 0){ 
+      rfMeshGroup.remove(rfMeshGroup.children[0]); 
+  }
+  
+  if (!gcsPos) return;
+
+  // Add GCS Marker if not present
+  if (!gcsMarker) {
+    const geo = new THREE.SphereGeometry(1.5, 16, 16);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8 });
+    gcsMarker = new THREE.Mesh(geo, mat);
+    scene.add(gcsMarker);
+  }
+  gcsMarker.position.set(gcsPos[0], gcsPos[1], gcsPos[2]);
+  
+  // Draw hops
+  for (const [idStr, dData] of Object.entries(dronesData)) {
+    if (dData.parent_id !== null && dData.parent_id !== undefined) {
+      const p1 = new THREE.Vector3(dData.x || 0, dData.y || 0, dData.z || 0);
+      let p2 = null;
+      if (dData.parent_id === 0) {
+        p2 = new THREE.Vector3(gcsPos[0], gcsPos[1], gcsPos[2]);
+      } else {
+        const parentData = dronesData[dData.parent_id];
+        if (parentData) {
+          p2 = new THREE.Vector3(parentData.x || 0, parentData.y || 0, parentData.z || 0);
+        }
+      }
+      
+      if (p2) {
+        const pts = [p1, p2];
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        
+        // Link color depends on PDR
+        let color = 0x00ff00;
+        if (dData.pdr < 50) color = 0xff0000;
+        else if (dData.pdr < 85) color = 0xffff00;
+        
+        const mat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.7 });
+        const line = new THREE.Line(geo, mat);
+        rfMeshGroup.add(line);
+      }
+    }
+  }
+}
+
+// ==========================================================================
 let geofenceVisualGroup = null;
 let currentFenceRadius = null;
 let currentFenceAltMax = null;
@@ -1110,6 +1169,9 @@ function updateSwarmState(data) {
   const anyBreach = Object.values(dronesData).some(d => d.geofence_breach && d.armed && (d.alt || 0) > 0.8);
   updateGeofenceVisual(swarm.geofence, anyBreach);
 
+  // Render RF Mesh Links
+  updateRFMeshVisual(dronesData, swarm.gcs_pos);
+
   // Geofence Breach Top Overlay Alert (Debounced to once every 12 seconds per breach event)
   if (anyBreach) {
     const breachedDrones = Object.values(dronesData).filter(d => d.geofence_breach && d.armed && (d.alt || 0) > 0.8);
@@ -1176,6 +1238,38 @@ function updateSwarmState(data) {
     }
   }
 
+  // Low Battery RTL Overlay Alert
+  const anyLowBattery = Object.values(dronesData).some(d => d.low_battery_rtb && d.armed);
+  if (anyLowBattery) {
+    const lowBattDrones = Object.values(dronesData).filter(d => d.low_battery_rtb && d.armed);
+    const firstLowBatt = lowBattDrones[0] || {};
+    const lowBattId = firstLowBatt.id || "Swarm";
+    const now = Date.now();
+
+    if (now - lastLowBatteryAlertTime > 20000) {
+      lastLowBatteryAlertTime = now;
+      logEvent(`⚠️ LOW BATTERY: UAV ${lowBattId} dropped below 25% SoC!`);
+      setFeedbackBanner(`⚠️ LOW BATTERY: UAV ${lowBattId}`, `State of Charge critical. Auto RTL triggered.`, "alert");
+
+      showMissionOverlay({
+        id: `low_batt_${lowBattId}`,
+        type: "warning",
+        badge: "🔋 CRITICAL BATTERY ALERT",
+        title: `UAV ${lowBattId} State of Charge Low (<25%)`,
+        message: `UAV ${lowBattId} has reached critical battery thresholds. Autonomous Return-To-Launch (RTL) has been triggered to preserve the asset.`,
+        autoDismissSeconds: 15,
+        actions: [
+          {
+            label: "🔄 Acknowledge",
+            className: "btn-secondary-hover",
+            icon: "✅",
+            dismiss: true
+          }
+        ]
+      });
+    }
+  }
+
   // Sync Downed Drones 3D Crash Beacons & SAR Trajectories
   syncDownedBeacons(data.downed_drones);
 
@@ -1188,6 +1282,7 @@ function updateSwarmState(data) {
 // ==========================================================================
 let missionOverlayTimeout = null;
 let lastGeofenceBreachAlertTime = 0;
+let lastLowBatteryAlertTime = 0;
 let lastActiveOverlayId = null;
 
 function showMissionOverlay(options) {

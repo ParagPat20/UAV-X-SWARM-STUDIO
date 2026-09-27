@@ -23,5 +23,5 @@ sleep 1.5
 
 # 2. Launch start_sitl.sh in fresh session
 cd "$SCRIPT_DIR"
-nohup bash "$SCRIPT_DIR/start_sitl.sh" "$NUM_DRONES" "$ENV_CHOICE" > /tmp/start_sitl.log 2>&1 &
+nohup bash -c "source /home/dhairya/venv-ardupilot/bin/activate && ./start_sitl.sh $NUM_DRONES $ENV_CHOICE" > /tmp/start_sitl.log 2>&1 &
 echo "[RESTART] start_sitl.sh launched with PID $!"

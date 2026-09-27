@@ -19,6 +19,8 @@ import urllib.parse
 from pymavlink import mavutil
 import websockets
 
+from rf_model import RFModel
+
 try:
     import airsim
 except ImportError:
@@ -83,9 +85,13 @@ class SwarmTelemetryManager:
         # --- Downed Drone SAR & Swarm Reconfiguration Engine ---
         self.downed_drones = {}  # drone_id -> { id, x, y, z, lat, lon, timestamp, assigned_rescuer }
 
+        # --- RF Communication Link Topology Engine ---
+        self.rf_model = RFModel(gcs_pos=(0, -100, 0), max_range=150.0)
+
         self._init_airsim_client()
         threading.Thread(target=self._guided_reactive_survey_loop, daemon=True).start()
         threading.Thread(target=self._geofence_monitor_loop, daemon=True).start()
+        threading.Thread(target=self._battery_simulation_loop, daemon=True).start()
 
     def load_settings(self):
         """Loads parameters locally from swarm_settings.json."""
@@ -344,8 +350,9 @@ class SwarmTelemetryManager:
                                     d["status_severity"] = 4  # Warning
 
                         elif mtype == 'SYS_STATUS':
-                            if msg.battery_remaining != -1:
-                                d["battery"] = max(0, min(100, msg.battery_remaining))
+                            # Battery is simulated in _battery_simulation_loop
+                            # if msg.battery_remaining != -1:
+                            #     d["battery"] = max(0, min(100, msg.battery_remaining))
                             if msg.voltage_battery > 0:
                                 d["voltage"] = round(msg.voltage_battery / 1000.0, 2)
                             if msg.current_battery > 0:
@@ -581,10 +588,18 @@ class SwarmTelemetryManager:
             max_speed = round(max((d["speed"] for d in active_drones), default=0.0), 1)
             all_armed = all(d["armed"] for d in active_drones) if active_drones else False
 
+            topology = self.rf_model.compute_topology(active_drones)
+
             serialized_drones = {}
             for d_id, d in self.drones.items():
                 if d["connected"]:
                     lidar_hits, min_obs_dist = self.compute_lidar_360_hits(d)
+                    
+                    # Update dynamic RF metrics
+                    rf_info = topology.get(d_id, {'pdr': 0, 'rssi': 0, 'hops': [], 'parent_id': None})
+                    d["rssi"] = rf_info['rssi']
+                    d["pdr"] = round(rf_info['pdr'] * 100, 1)
+
                     serialized_drones[d_id] = {
                         "id": d["id"],
                         "color": d["color"],
@@ -612,6 +627,9 @@ class SwarmTelemetryManager:
                         "voltage": d["voltage"],
                         "current": d["current"],
                         "rssi": d["rssi"],
+                        "pdr": d["pdr"],
+                        "hops": rf_info["hops"],
+                        "parent_id": rf_info["parent_id"],
                         "satellites": d["satellites"],
                         "fix_type": d["fix_type"],
                         "current_wp": d["current_wp"],
@@ -621,7 +639,8 @@ class SwarmTelemetryManager:
                         "trail": d["trail"][-60:],
                         "predicted_trajectory": d.get("predicted_trajectory", []),
                         "survey_waypoints": d.get("survey_waypoints", []),
-                        "geofence_breach": d.get("geofence_breach", False)
+                        "geofence_breach": d.get("geofence_breach", False),
+                        "low_battery_rtb": d.get("low_battery_rtb_triggered", False)
                     }
 
             return {
@@ -638,7 +657,8 @@ class SwarmTelemetryManager:
                         "radius": self.geofence_radius,
                         "alt_max": self.geofence_alt_max,
                         "center": [0.0, 0.0, 0.0]
-                    }
+                    },
+                    "gcs_pos": self.rf_model.gcs_pos
                 },
                 "settings": {
                     "geofence_enabled": self.geofence_enabled,
@@ -653,6 +673,43 @@ class SwarmTelemetryManager:
                 "downed_drones": list(self.downed_drones.values()),
                 "drones": serialized_drones
             }
+
+    def _battery_simulation_loop(self):
+        """1Hz Autonomous Battery Simulation & SoC Management."""
+        while self.running:
+            try:
+                with self.lock:
+                    for sysid, d in self.drones.items():
+                        if not d.get("connected") or not d.get("armed"):
+                            continue
+                        
+                        # SoC simulation: SoC(t) = SoC(0) - ∫(I_base + k·v²) dt
+                        # Hover current drain base = 1.5% per second (Accelerated for demonstration)
+                        # Velocity penalty k = 0.002
+                        i_base = 1.5
+                        k_vel = 0.002
+                        v_sq = d.get("vx", 0)**2 + d.get("vy", 0)**2 + d.get("vz", 0)**2
+                        depletion = i_base + k_vel * v_sq
+                        
+                        d["battery"] = max(0.0, d.get("battery", 100.0) - depletion)
+                        
+                        # RTB Trigger at 25%
+                        if d["battery"] <= 25.0 and not d.get("low_battery_rtb_triggered", False):
+                            d["low_battery_rtb_triggered"] = True
+                            d["last_status_msg"] = "⚠️ LOW BATTERY - AUTO RTL"
+                            # Trigger RTL MAVLink command
+                            if d.get("conn"):
+                                try:
+                                    d["conn"].mav.command_long_send(
+                                        d["conn"].target_system, d["conn"].target_component,
+                                        mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH,
+                                        0, 0, 0, 0, 0, 0, 0, 0
+                                    )
+                                except Exception:
+                                    pass
+            except Exception:
+                pass
+            time.sleep(1.0)
 
     def _geofence_monitor_loop(self):
         """10Hz Autonomous Geofence Boundary Telemetry & Monitoring."""
@@ -1068,7 +1125,7 @@ class SwarmTelemetryManager:
             if not os.path.exists(script_path):
                 script_path = os.path.join(base_dir, "restart_simulation.sh")
             if not os.path.exists(script_path):
-                script_path = "/home/parag/restart_simulation.sh"
+                script_path = "/home/dhairya/UAV-X-SWARM-STUDIO/restart_simulation.sh"
             subprocess.Popen(["/bin/bash", script_path, str(num_drones)], start_new_session=True)
             return
 

@@ -380,7 +380,7 @@ The entire UAV-X codebase is fully automated, self-contained, and reproducible o
 
 ### 11.1 Directory Structure
 ```
-/home/parag/
+/home/dhairya/UAV-X-SWARM-STUDIO/
 ├── start_sitl.sh              # Master launcher: cleans ports, spawns AirSim + SITL instances
 ├── restart_simulation.sh      # One-click dynamic swarm restart utility
 ├── drone_control.py           # Multithreaded MAVLink mission & formation CLI

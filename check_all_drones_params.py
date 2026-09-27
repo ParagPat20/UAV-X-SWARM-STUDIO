@@ -10,7 +10,7 @@ import time
 import math
 from pymavlink import mavutil
 
-SWARM_PARM_PATH = "/home/parag/swarm_params.parm"
+SWARM_PARM_PATH = "/home/dhairya/UAV-X-SWARM-STUDIO/swarm_params.parm"
 
 KEY_PARAMS_TO_VERIFY = [
     "OA_TYPE",

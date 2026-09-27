@@ -20,8 +20,8 @@
   - [x] Integrate Microsoft AirSim (Unreal Engine 4) with ArduPilot SITL (ArduCopter).
   - [x] Port scaling architecture (`9002/9003 + 10*i` for physics, `5760 + 10*i` for MAVLink).
   - [x] Fix UDP socket buffer overflow (`PointsPerSecond = 10,000` to prevent `-1` socket crash).
-  - [x] Auto-generate multi-drone `settings.json` dynamically via [`start_sitl.sh`](file:///home/parag/start_sitl.sh).
-  - [x] Multi-drone parameter inheritance via centralized [`swarm_params.parm`](file:///home/parag/swarm_params.parm).
+  - [x] Auto-generate multi-drone `settings.json` dynamically via [`start_sitl.sh`](file:///home/dhairya/UAV-X-SWARM-STUDIO/start_sitl.sh).
+  - [x] Multi-drone parameter inheritance via centralized [`swarm_params.parm`](file:///home/dhairya/UAV-X-SWARM-STUDIO/swarm_params.parm).
   - [x] Multi-system ID assignment via `--auto-sysid` without ID collision.
 
 - [x] **1.2 Sensor Integration & Stability Tuning**
@@ -62,7 +62,7 @@
 ## 3. Swarm Command, Control & Dynamic Choreography (Weight: Foundation for Mission)
 
 - [x] **3.1 Concurrent Multithreaded Telemetry & Control Stack**
-  - [x] Multithreaded non-blocking MAVLink command dispatch in [`drone_control.py`](file:///home/parag/drone_control.py).
+  - [x] Multithreaded non-blocking MAVLink command dispatch in [`drone_control.py`](file:///home/dhairya/UAV-X-SWARM-STUDIO/drone_control.py).
   - [x] Per-drone telemetry filtering and thread safety locks (`msg.get_srcSystem() == sysid`).
   - [x] Broadcast commands: `all arm`, `all takeoff`, `all land`, `all rtl`, `all auto`, `all guided`.
   - [x] Individual drone targeting (`d1 arm`, `d2 move`, etc.).
@@ -80,14 +80,14 @@
   - [x] Smart circle orientation modes (`outward` for 360° perimeter monitoring, `center`, `tangent`, `north`).
 
 - [x] **3.4 UAV-X 3D Swarm Studio GCS (Native Flutter Desktop App & Minimalistic Glassmorphism)**
-  - [x] Built standalone Native Linux Desktop Application in Flutter ([`uav_x_swarm_studio`](file:///home/parag/uav_x_swarm_studio)).
+  - [x] Built standalone Native Linux Desktop Application in Flutter ([`uav_x_swarm_studio`](file:///home/dhairya/UAV-X-SWARM-STUDIO/uav_x_swarm_studio)).
   - [x] Interactive 3D Viewport with real-time perspective projection, orbit controls, ground radar circles, and distance grids.
   - [x] Unique neon colored trajectory ribbon tails per drone (Cyan, Purple, Pink, Gold, Emerald).
   - [x] Altitude drop-lines with ground shadow markers and laser projections.
   - [x] Dynamic BVLOS mesh topology visualization (inter-drone RF energy links & link quality metrics).
   - [x] Minimalistic Glassmorphism UI with live telemetry cards (Alt, Speed, Battery %, RSSI bars, Heading, Mode).
   - [x] Embedded Swarm Command Deck (One-click Arm/Disarm, Takeoff, Alt slider, Formations, Auto Survey, RTL, Land).
-  - [x] Compiled to standalone native release binary at [`/home/parag/uav_x_swarm_studio/build/linux/x64/release/bundle/uav_x_swarm_studio`](file:///home/parag/uav_x_swarm_studio/build/linux/x64/release/bundle/uav_x_swarm_studio) and launcher [`run_swarm_studio.sh`](file:///home/parag/run_swarm_studio.sh).
+  - [x] Compiled to standalone native release binary at [`/home/dhairya/UAV-X-SWARM-STUDIO/uav_x_swarm_studio/build/linux/x64/release/bundle/uav_x_swarm_studio`](file:///home/dhairya/UAV-X-SWARM-STUDIO/uav_x_swarm_studio/build/linux/x64/release/bundle/uav_x_swarm_studio) and launcher [`run_swarm_studio.sh`](file:///home/dhairya/UAV-X-SWARM-STUDIO/run_swarm_studio.sh).
 
 ---
 
@@ -98,7 +98,7 @@
   - [x] Generates collision-free parallel Lawnmower waypoint trajectories.
   - [x] Parallel MAVLink mission upload protocol (`MISSION_COUNT`, `MISSION_ITEM_INT`, `MISSION_ACK`).
   - [x] Integrated survey CLI command: `survey <length> <width> [alt]` inside Drone Commander.
-  - [x] Standalone survey planner script ([`swarm_planner.py`](file:///home/parag/swarm_planner.py)).
+  - [x] Standalone survey planner script ([`swarm_planner.py`](file:///home/dhairya/UAV-X-SWARM-STUDIO/swarm_planner.py)).
 
 - [ ] **4.2 Dynamic Point of Interest (PoI) Allocation & Priority Queue** *(To Do)*
   - [ ] Support priority-tagged PoIs (Critical, High, Normal).
@@ -150,7 +150,7 @@
   - [x] 3D LiDAR Connected Component Obstacle Solidifier & 60 FPS Engine.
 
 - [x] **7.2 Stage 1 Submission Deliverables (Deadline: Sep 2026)**
-  - [x] 6–8 Page Technical Proposal document ([`UAV_X_Stage1_Technical_Proposal.md`](file:///home/parag/UAV_X_Stage1_Technical_Proposal.md)).
+  - [x] 6–8 Page Technical Proposal document ([`UAV_X_Stage1_Technical_Proposal.md`](file:///home/dhairya/UAV-X-SWARM-STUDIO/UAV_X_Stage1_Technical_Proposal.md)).
   - [x] Architecture diagrams (System, Control, Mesh Network, SAR Flowchart).
   - [x] Live SITL Simulation & Swarm Studio WebGL + Desktop GCS.
   - [x] Source code & reproducible installation guide.
@@ -159,4 +159,4 @@
 
 ### 📌 Current Status:
 - **Completed:** 26 / 29 Subtopics (**~90% Completed** — All foundational simulation, physics, avoidance, geofencing, threading, formations, yaw alignment, parallel survey, SAR handover, connected SLAM solidifier, and 6–8 page technical proposal document are complete!).
-- **Primary Deliverable:** [`UAV_X_Stage1_Technical_Proposal.md`](file:///home/parag/UAV_X_Stage1_Technical_Proposal.md) is ready for submission.
+- **Primary Deliverable:** [`UAV_X_Stage1_Technical_Proposal.md`](file:///home/dhairya/UAV-X-SWARM-STUDIO/UAV_X_Stage1_Technical_Proposal.md) is ready for submission.
