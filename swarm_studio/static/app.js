@@ -1278,12 +1278,27 @@ function updateSwarmState(data) {
 }
 
 // ==========================================================================
-// Top Mission Notification HUD Overlay Modal Manager
-// ==========================================================================
 let missionOverlayTimeout = null;
 let lastGeofenceBreachAlertTime = 0;
 let lastLowBatteryAlertTime = 0;
 let lastActiveOverlayId = null;
+
+function playMissionAlertChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+  } catch (e) {}
+}
 
 function showMissionOverlay(options) {
   const container = document.getElementById("top-mission-overlay");
@@ -1459,14 +1474,16 @@ function syncDownedBeacons(downedList) {
         beacon.sarLine.visible = true;
       }
 
-      // If rescuer is near crash site (< 4.5m), trigger the Top Screen Alert Notification Overlay with actions!
+      // If rescuer is near crash site (< 6.0m) or backend flags arrival, trigger the Top Screen Alert Notification Overlay with actions!
+      const isArrived = dist < 6.0 || Boolean(item.sar_arrived) || Boolean(rescuerDrone?.telemetry?.sar_arrived);
       const arrivalKey = `${id}_${item.assigned_rescuer}`;
-      if (dist < 4.5 && !sarArrivedAlerted.has(arrivalKey)) {
+      if (isArrived && !sarArrivedAlerted.has(arrivalKey)) {
         sarArrivedAlerted.add(arrivalKey);
         const rescuerId = item.assigned_rescuer;
         const arrivalMsg = `🚨 UAV ${rescuerId} reached UAV ${id}'s accidental area!`;
-        setFeedbackBanner(`🚨 SAR ARRIVAL: UAV ${rescuerId}`, `UAV ${rescuerId} is near UAV ${id}'s last location accidental area! Holding position.`, "warn");
+        setFeedbackBanner(`🚨 SAR ARRIVAL: UAV ${rescuerId}`, `UAV ${rescuerId} is near UAV ${id}'s accidental area (${dist.toFixed(1)}m)! Holding SAR position.`, "warn");
         logEvent(arrivalMsg);
+        playMissionAlertChime();
 
         // Top Mission HUD Overlay with interactive action choices
         showMissionOverlay({
@@ -1484,6 +1501,14 @@ function syncDownedBeacons(downedList) {
                 sendGCSCommand({ action: "continue_survey", target: "all", params: { downed_id: id } });
                 logEvent(`▶ Swarm autonomous survey resumed by operator.`);
                 setFeedbackBanner("SURVEY RESUMED", "Swarm fleet fanning out on autonomous exploration.", "exec");
+              }
+            },
+            {
+              label: `🔄 Revive UAV ${id}`,
+              className: "btn-primary-survey",
+              icon: "⚡",
+              onClick: () => {
+                window.reviveDrone(id);
               }
             },
             {
@@ -1557,6 +1582,10 @@ function renderDroneCards(dronesData) {
 
   const emptyState = container.querySelector(".empty-state");
   if (emptyState) emptyState.remove();
+
+  if (typeof window.updateFpvTabs === "function") {
+    window.updateFpvTabs(droneIds);
+  }
 
   droneIds.forEach(id => {
     const d = dronesData[id];
@@ -3278,28 +3307,54 @@ function initFPVVideoDeck() {
     logEvent(`FPV Camera Sensor changed to Index ${fpvActiveCam}`);
   });
 
-  // Drone Tab Selection
-  document.querySelectorAll(".fpv-channel-tabs .fpv-tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".fpv-channel-tabs .fpv-tab").forEach(t => t.classList.remove("active"));
-      tab.classList.add("active");
-      const target = tab.dataset.drone;
+  function bindTabListeners() {
+    document.querySelectorAll(".fpv-channel-tabs .fpv-tab").forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll(".fpv-channel-tabs .fpv-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        const target = tab.dataset.drone;
 
-      if (target === "matrix") {
-        fpvIsMatrixView = true;
-        if (singleView) singleView.classList.add("hidden");
-        if (matrixView) matrixView.classList.remove("hidden");
-        if (titleElem) titleElem.textContent = "QUAD-VIEW SURVEILLANCE GRID";
-        buildMatrixGrid();
-      } else {
-        fpvIsMatrixView = false;
-        fpvActiveDrone = parseInt(target, 10);
-        if (matrixView) matrixView.classList.add("hidden");
-        if (singleView) singleView.classList.remove("hidden");
-        if (titleElem) titleElem.textContent = `UAV ${fpvActiveDrone} OPTICAL FEED`;
-      }
+        if (target === "matrix") {
+          fpvIsMatrixView = true;
+          if (singleView) singleView.classList.add("hidden");
+          if (matrixView) matrixView.classList.remove("hidden");
+          if (titleElem) titleElem.textContent = "QUAD-VIEW SURVEILLANCE GRID";
+          buildMatrixGrid();
+        } else {
+          fpvIsMatrixView = false;
+          fpvActiveDrone = parseInt(target, 10);
+          if (matrixView) matrixView.classList.add("hidden");
+          if (singleView) singleView.classList.remove("hidden");
+          if (titleElem) titleElem.textContent = `UAV ${fpvActiveDrone} OPTICAL FEED`;
+        }
+      };
     });
-  });
+  }
+  bindTabListeners();
+
+  // Dynamic Tabs sync with active drone count
+  window.updateFpvTabs = function(droneIds) {
+    const tabsContainer = document.getElementById("fpv-drone-tabs");
+    if (!tabsContainer || !droneIds || droneIds.length === 0) return;
+    const existingIds = Array.from(tabsContainer.querySelectorAll(".fpv-tab:not([data-drone='matrix'])")).map(t => parseInt(t.dataset.drone));
+    const sortedIds = [...droneIds].sort((a, b) => a - b);
+    if (existingIds.length === sortedIds.length && existingIds.every((v, i) => v === sortedIds[i])) return;
+
+    tabsContainer.innerHTML = "";
+    sortedIds.forEach(id => {
+      const btn = document.createElement("button");
+      btn.className = `fpv-tab ${id === fpvActiveDrone && !fpvIsMatrixView ? 'active' : ''}`;
+      btn.dataset.drone = id;
+      btn.innerHTML = `<span class="tab-dot" style="background:${DRONE_COLORS[(id - 1) % DRONE_COLORS.length]}"></span> UAV ${id}`;
+      tabsContainer.appendChild(btn);
+    });
+    const quadBtn = document.createElement("button");
+    quadBtn.className = `fpv-tab ${fpvIsMatrixView ? 'active' : ''}`;
+    quadBtn.dataset.drone = "matrix";
+    quadBtn.textContent = "🔲 QUAD";
+    tabsContainer.appendChild(quadBtn);
+    bindTabListeners();
+  };
 
   // Dragging support for floating window
   makeElementDraggable(deck, document.getElementById("fpv-deck-header"));
@@ -3307,21 +3362,22 @@ function initFPVVideoDeck() {
   function buildMatrixGrid() {
     if (!matrixGrid) return;
     matrixGrid.innerHTML = "";
-    for (let id = 1; id <= 4; id++) {
+    const droneIds = Object.keys(state.drones).map(Number).sort((a, b) => a - b).slice(0, 4);
+    const displayIds = droneIds.length > 0 ? droneIds : [1, 2, 3, 4];
+    displayIds.forEach(id => {
       const cell = document.createElement("div");
       cell.className = "fpv-matrix-cell";
       cell.innerHTML = `
         <img id="fpv-matrix-img-${id}" class="fpv-stream-img" src="" alt="UAV ${id} Feed" />
-        <div class="fpv-matrix-cell-label" style="border-left: 3px solid ${DRONE_COLORS[id - 1] || '#00f5d4'}">
+        <div class="fpv-matrix-cell-label" style="border-left: 3px solid ${DRONE_COLORS[(id - 1) % DRONE_COLORS.length] || '#00f5d4'}">
           UAV ${id} | <span id="fpv-matrix-alt-${id}">0.0m</span>
         </div>
       `;
       cell.addEventListener("click", () => {
-        // Click cell to focus single drone
         document.querySelector(`.fpv-channel-tabs .fpv-tab[data-drone="${id}"]`)?.click();
       });
       matrixGrid.appendChild(cell);
-    }
+    });
   }
 
   function startFpvStream() {

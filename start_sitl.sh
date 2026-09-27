@@ -234,7 +234,11 @@ fi
 
 # --- 4. Launch UAV-X Swarm Studio Server & App Window ---
 echo "Starting UAV-X Swarm Studio Backend Server..."
-python3 "$SCRIPT_DIR/swarm_studio/server.py" > /tmp/swarm_studio.log 2>&1 &
+PYTHON_EXEC="python3"
+if [ -x "$HOME/venv-ardupilot/bin/python3" ]; then
+    PYTHON_EXEC="$HOME/venv-ardupilot/bin/python3"
+fi
+"$PYTHON_EXEC" "$SCRIPT_DIR/swarm_studio/server.py" > /tmp/swarm_studio.log 2>&1 &
 sleep 1
 
 echo "Launching UAV-X Swarm Studio Desktop Window..."

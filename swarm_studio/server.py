@@ -17,9 +17,22 @@ import http.server
 import socketserver
 import urllib.parse
 from pymavlink import mavutil
+for venv_path in [
+    os.path.expanduser("~/venv-ardupilot/lib/python3.10/site-packages"),
+    os.path.expanduser("~/venv-ardupilot/lib/python3.11/site-packages"),
+    os.path.expanduser("~/venv-ardupilot/lib/python3.12/site-packages"),
+]:
+    if os.path.exists(venv_path) and venv_path not in sys.path:
+        sys.path.insert(0, venv_path)
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import websockets
 
-from rf_model import RFModel
+try:
+    from rf_model import RFModel
+except ImportError:
+    from swarm_studio.rf_model import RFModel
 
 try:
     import airsim
@@ -457,7 +470,7 @@ class SwarmTelemetryManager:
             return self.airsim_client
 
     def fetch_camera_frame(self, drone_idx, cam_name="0", image_type=0):
-        """Fetches live camera frame bytes from AirSim for UAV{drone_idx}."""
+        """Fetches live camera frame PNG bytes from AirSim for UAV{drone_idx}."""
         client = self.get_airsim_client()
         if not client or not airsim:
             return None
@@ -466,8 +479,9 @@ class SwarmTelemetryManager:
             with self.airsim_lock:
                 req_cam = str(cam_name)
                 req_type = airsim.ImageType(image_type)
+                # compress=True returns PNG-compressed image bytes
                 responses = client.simGetImages([
-                    airsim.ImageRequest(req_cam, req_type, False, False)
+                    airsim.ImageRequest(req_cam, req_type, False, True)
                 ], vehicle_name=uav_name)
             if responses and len(responses) > 0 and len(responses[0].image_data_uint8) > 0:
                 return bytes(responses[0].image_data_uint8)
@@ -1263,16 +1277,51 @@ class SwarmTelemetryManager:
         if action == "revive_drone":
             target_id = int(params.get("drone_id", target if str(target).isdigit() else 1))
             with self.lock:
-                if target_id in self.drones:
-                    d = self.drones[target_id]
+                to_revive = list(self.drones.keys()) if (target == "all" or target_id == 0) else ([target_id] if target_id in self.drones else [])
+                for tid in to_revive:
+                    d = self.drones[tid]
+                    conn = d.get("conn")
                     d["failed"] = False
                     d["connected"] = True
                     d["mode"] = "GUIDED"
-                    d["flight_phase"] = "RESTORED"
-                    d["last_status_msg"] = f"UAV {target_id} restored to active swarm fleet."
-                    if target_id in self.downed_drones:
-                        del self.downed_drones[target_id]
-                    print(f"[SWARM] UAV {target_id} revived and re-joined swarm.")
+                    d["flight_phase"] = "RE-ARMING / RESUMING"
+                    d["last_status_msg"] = f"🔄 UAV {tid} revived! Re-arming motors & resuming swarm mission..."
+                    if tid in self.downed_drones:
+                        del self.downed_drones[tid]
+
+                    # 1. Re-arm motors in SITL & Command Takeoff
+                    if conn:
+                        try:
+                            conn.set_mode(4)  # GUIDED
+                            conn.mav.command_long_send(
+                                tid, 1,
+                                mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+                                0, 1, 21196, 0, 0, 0, 0, 0
+                            )
+                            # Takeoff back to survey altitude
+                            takeoff_alt = max(5.0, d.get("target_alt", 5.0))
+                            conn.mav.command_long_send(
+                                tid, 1,
+                                mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
+                                0, 0, 0, 0, 0, 0, 0, float(takeoff_alt)
+                            )
+                        except Exception as ex:
+                            print(f"[REVIVE] Warning sending arm/takeoff to UAV {tid}: {ex}")
+
+                    # 2. Re-integrate into active survey exploration state
+                    sector_deg = (tid * 72.0) % 360.0
+                    self.guided_survey_state[tid] = {
+                        "alt": max(5.0, d.get("target_alt", 5.0)),
+                        "primary_sector_deg": sector_deg,
+                        "explore_radius": self.geofence_radius * 0.75 if self.geofence_enabled else 60.0,
+                        "turn_dir": 1.0 if tid % 2 == 0 else -1.0,
+                        "center_x": 0.0,
+                        "center_z": 0.0,
+                        "smooth_hdg": sector_deg,
+                        "start_time": time.time(),
+                        "lane_k": tid - 1
+                    }
+                    print(f"[SWARM] UAV {tid} revived, re-armed, and resumed mission.")
             return
 
         if action in ("continue_survey", "resume_survey_after_sar"):
@@ -1753,8 +1802,8 @@ class NoCacheHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path.startswith("/api/camera"):
             parsed = urllib.parse.urlparse(self.path)
             query = urllib.parse.parse_qs(parsed.query)
-            drone_id = int(query.get("id", ["1"])[0])
-            cam_name = query.get("cam", ["0"])[0]
+            drone_id = int(query.get("drone", query.get("id", ["1"]))[0])
+            cam_name = query.get("camera", query.get("cam", ["0"]))[0]
             img_type = int(query.get("type", ["0"])[0])
 
             if "stream" in parsed.path:

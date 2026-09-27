@@ -2700,3 +2700,195 @@ input[type="range"]::-webkit-slider-thumb:hover {
   font-weight: 700;
   color: #fff;
 }
+
+/* ==========================================================================
+   Top Mission Notification HUD Overlay Modal
+   ========================================================================== */
+.top-mission-overlay {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  pointer-events: auto;
+  animation: slide-down-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slide-down-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.mission-overlay-card {
+  width: 520px;
+  max-width: 92vw;
+  background: rgba(14, 20, 30, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 171, 0, 0.45);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 24px rgba(255, 171, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mission-overlay-card.type-warn {
+  border-color: rgba(255, 171, 0, 0.5);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 24px rgba(255, 171, 0, 0.25);
+}
+
+.mission-overlay-card.type-danger {
+  border-color: rgba(255, 59, 48, 0.6);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 28px rgba(255, 59, 48, 0.35);
+}
+
+.overlay-glow-bar {
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, #ffab00, #ff385c, #00f5d4);
+  box-shadow: 0 0 10px rgba(255, 171, 0, 0.6);
+}
+
+.overlay-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 6px 14px;
+}
+
+.overlay-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 171, 0, 0.15);
+  border: 1px solid rgba(255, 171, 0, 0.4);
+  color: #ffb703;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.overlay-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #ffb703;
+  box-shadow: 0 0 6px #ffb703;
+  animation: pulse-dot 1.2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+.overlay-time {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.overlay-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.overlay-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.overlay-body {
+  padding: 4px 14px 10px 14px;
+}
+
+.overlay-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 4px 0;
+  letter-spacing: 0.3px;
+}
+
+.overlay-message {
+  font-size: 10.5px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.overlay-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px 12px 14px;
+  background: rgba(10, 15, 24, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+}
+
+.overlay-act-btn {
+  flex: 1;
+  min-width: 110px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.overlay-act-btn.btn-primary-survey {
+  background: linear-gradient(135deg, #00f5d4 0%, #00bbf9 100%);
+  color: #0b111e;
+  border: none;
+  box-shadow: 0 0 12px rgba(0, 245, 212, 0.35);
+}
+
+.overlay-act-btn.btn-primary-survey:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.overlay-act-btn.btn-secondary-hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+}
+
+.overlay-act-btn.btn-secondary-hover:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.overlay-act-btn.btn-danger-rtl {
+  background: rgba(255, 59, 48, 0.2);
+  border-color: rgba(255, 59, 48, 0.5);
+  color: #ff453a;
+}
+
+.overlay-act-btn.btn-danger-rtl:hover {
+  background: #ff453a;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(255, 59, 48, 0.5);
+}

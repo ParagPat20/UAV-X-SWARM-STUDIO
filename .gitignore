@@ -62,4 +62,7 @@ environments/
 Blocks/
 AirSimNH/
 LandscapeMountains/
+ZhangJiajie/
+drive-download*/
 *.zip
+mav_*.parm

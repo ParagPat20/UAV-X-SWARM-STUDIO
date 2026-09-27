@@ -7,6 +7,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **UAV-X Swarm Studio** is an industrial-grade, dark-glassmorphic Ground Control Station (GCS) and autonomous multi-agent flight controller designed for resilient **BVLOS Swarm Operations**, **3D LiDAR SLAM Solidification**, and **Decentralized Search & Rescue (SAR)**.
+> 
+> 📄 **Complete Technical Whitepaper**: See the full engineering design and R&D evolution report in [TECHNICAL_SYSTEM_REPORT.md](docs/TECHNICAL_SYSTEM_REPORT.md).
 
 ---
 
